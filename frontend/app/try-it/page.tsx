@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge, Button, Card, FlagList, PageHeader, TrustRing } from "@/components/ui";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
@@ -39,7 +41,6 @@ export default function TryItLivePage() {
   const [ragContext, setRagContext] = useState(PRESETS[0].ragContext);
   const [sending, setSending] = useState(false);
   const [immediate, setImmediate] = useState<{ content: string; syncAction: string; syncFlags: unknown[] } | null>(null);
-  const [interactionId, setInteractionId] = useState<number | null>(null);
   const [detail, setDetail] = useState<InteractionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -69,7 +70,6 @@ export default function TryItLivePage() {
         syncFlags: res.controlplane.sync_flags,
       });
       const id = res.controlplane.interaction_id;
-      setInteractionId(id);
 
       let attempts = 0;
       pollRef.current = setInterval(async () => {
@@ -106,7 +106,7 @@ export default function TryItLivePage() {
                     setPrompt(p.prompt);
                     setRagContext(p.ragContext);
                   }}
-                  className="text-xs px-2.5 py-1 rounded-md border border-border bg-surface-2 hover:bg-border/40 transition-colors"
+                  className="text-xs px-3 h-8 rounded-full border border-border bg-surface-2 hover:bg-surface-3 hover:border-border-strong transition-colors duration-150"
                 >
                   {p.label}
                 </button>
@@ -114,11 +114,11 @@ export default function TryItLivePage() {
             </div>
 
             <div>
-              <label className="text-xs uppercase text-muted">Target App</label>
+              <label className="text-xs uppercase text-muted-2">Target App</label>
               <select
                 value={appKey}
                 onChange={(e) => setAppKey(e.target.value)}
-                className="mt-1 w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm"
+                className="mt-1.5 w-full bg-surface-2 border border-border rounded-xl px-3.5 h-10 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
               >
                 {apps.map((a) => (
                   <option key={a.key} value={a.key}>
@@ -129,27 +129,28 @@ export default function TryItLivePage() {
             </div>
 
             <div>
-              <label className="text-xs uppercase text-muted">Prompt</label>
+              <label className="text-xs uppercase text-muted-2">Prompt</label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={4}
-                className="mt-1 w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm"
+                className="mt-1.5 w-full bg-surface-2 border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
             </div>
 
             <div>
-              <label className="text-xs uppercase text-muted">Source / RAG Context (optional)</label>
+              <label className="text-xs uppercase text-muted-2">Source / RAG Context (optional)</label>
               <textarea
                 value={ragContext}
                 onChange={(e) => setRagContext(e.target.value)}
                 rows={3}
                 placeholder="Paste the ground-truth document the model should be faithful to..."
-                className="mt-1 w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm"
+                className="mt-1.5 w-full bg-surface-2 border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
             </div>
 
             <Button onClick={submit} disabled={sending || !prompt}>
+              {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               {sending ? "Sending through proxy…" : "Send Request"}
             </Button>
             {error && <p className="text-sm text-rose-400">{error}</p>}
@@ -157,56 +158,66 @@ export default function TryItLivePage() {
         </Card>
 
         <Card>
-          {!immediate && <div className="text-sm text-muted">The proxy response and evaluation trace will appear here.</div>}
-          {immediate && (
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs uppercase text-muted">Delivered Response</span>
-                  <Badge
-                    className={
-                      immediate.syncAction === "blocked"
-                        ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
-                        : immediate.syncAction === "redacted"
-                        ? "text-amber-400 bg-amber-400/10 border-amber-400/30"
-                        : "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
-                    }
-                  >
-                    {immediate.syncAction}
-                  </Badge>
-                  <span className="text-xs text-muted">(&lt;10ms sync path)</span>
-                </div>
-                <div className="text-sm bg-surface-2 rounded-lg p-3 whitespace-pre-wrap">{immediate.content}</div>
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <div className="text-xs uppercase text-muted mb-2">Async Evaluation (Control Plane + Intelligence Layer)</div>
-                {!detail?.evaluation && (
-                  <div className="text-sm text-muted animate-pulse">Running Performance / Cost / Responsibility analyzers…</div>
-                )}
-                {detail?.evaluation && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <TrustRing score={detail.evaluation.trust_score} />
-                      <div>
-                        <div className="text-sm font-medium">TrustScore {detail.evaluation.trust_score}</div>
-                        <div className="text-xs text-muted capitalize">{detail.evaluation.risk_level} risk</div>
-                      </div>
-                    </div>
-                    <FlagList flags={detail.evaluation.flags} />
-                    {detail.business_impact && detail.business_impact.risk_category !== "none" && (
-                      <div className="text-sm bg-surface-2 rounded-lg p-3">{detail.business_impact.narrative}</div>
-                    )}
-                    {detail.escalation && (
-                      <Badge className="text-muted bg-surface-2 border-border">
-                        {detail.escalation.decision.replace(/_/g, " ")} · {detail.escalation.status}
-                      </Badge>
-                    )}
+          {!immediate && <div className="text-sm text-muted-2">The proxy response and evaluation trace will appear here.</div>}
+          <AnimatePresence>
+            {immediate && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs uppercase text-muted-2">Delivered Response</span>
+                    <Badge
+                      className={
+                        immediate.syncAction === "blocked"
+                          ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
+                          : immediate.syncAction === "redacted"
+                          ? "text-amber-400 bg-amber-400/10 border-amber-400/30"
+                          : "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
+                      }
+                    >
+                      {immediate.syncAction}
+                    </Badge>
+                    <span className="text-xs text-muted-2">(&lt;10ms sync path)</span>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
+                  <div className="text-sm bg-surface-2 rounded-xl p-3 whitespace-pre-wrap">{immediate.content}</div>
+                </div>
+
+                <div className="border-t border-border pt-4">
+                  <div className="text-xs uppercase text-muted-2 mb-2">Async Evaluation (Control Plane + Intelligence Layer)</div>
+                  {!detail?.evaluation && (
+                    <div className="flex items-center gap-2 text-sm text-muted">
+                      <Loader2 size={14} className="animate-spin" />
+                      Running Performance / Cost / Responsibility analyzers…
+                    </div>
+                  )}
+                  {detail?.evaluation && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <TrustRing score={detail.evaluation.trust_score} />
+                        <div>
+                          <div className="text-sm font-medium font-display">TrustScore {detail.evaluation.trust_score}</div>
+                          <div className="text-xs text-muted-2 capitalize">{detail.evaluation.risk_level} risk</div>
+                        </div>
+                      </div>
+                      <FlagList flags={detail.evaluation.flags} />
+                      {detail.business_impact && detail.business_impact.risk_category !== "none" && (
+                        <div className="text-sm bg-surface-2 rounded-xl p-3">{detail.business_impact.narrative}</div>
+                      )}
+                      {detail.escalation && (
+                        <Badge className="text-muted bg-surface-2 border-border">
+                          {detail.escalation.decision.replace(/_/g, " ")} · {detail.escalation.status}
+                        </Badge>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Card>
       </div>
     </div>

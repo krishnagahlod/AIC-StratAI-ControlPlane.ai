@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
+import PageTransition from "@/components/PageTransition";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,6 +14,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "ControlPlane.ai",
   description: "Real-time AI oversight: performance, cost, and responsibility risk for enterprise AI.",
@@ -20,10 +27,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex bg-background text-foreground">
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} h-full antialiased overflow-x-hidden`}
+    >
+      <body className="min-h-full flex bg-background text-foreground overflow-x-hidden">
         <Sidebar />
-        <main className="flex-1 min-w-0 p-8">{children}</main>
+        <div className="flex-1 min-w-0 relative">
+          <div className="mesh-backdrop" aria-hidden="true" />
+          <main className="relative p-6 md:p-8 max-w-[1600px] mx-auto">
+            <PageTransition>{children}</PageTransition>
+          </main>
+        </div>
       </body>
     </html>
   );

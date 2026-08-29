@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Timer } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { decisionLabel, formatRelativeTime } from "@/lib/format";
-import { Badge, Button, Card, FlagList, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, FlagList, PageHeader, SectionLabel } from "@/components/ui";
 import type { ReviewQueueItem } from "@/lib/types";
 
 type QueueItemWithDeadline = ReviewQueueItem & { deadlineMs: number | null };
@@ -19,7 +21,8 @@ function Countdown({ deadlineMs }: { deadlineMs: number | null }) {
   const remaining = Math.max(0, Math.round((deadlineMs - now) / 1000));
   const urgent = remaining <= 15;
   return (
-    <span className={`text-xs font-mono ${urgent ? "text-rose-400" : "text-amber-400"}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-mono ${urgent ? "text-rose-400" : "text-amber-400"}`}>
+      <Timer size={12} className={urgent ? "pulse-dot" : ""} />
       {remaining > 0 ? `${remaining}s until safe default` : "SLA expired — safe default applying"}
     </span>
   );
@@ -75,83 +78,94 @@ export default function ReviewQueuePage() {
       />
 
       <div className="mb-8">
-        <div className="text-sm font-medium mb-3">Awaiting Decision ({pending.length})</div>
+        <SectionLabel>Awaiting Decision ({pending.length})</SectionLabel>
         {pending.length === 0 && (
           <Card>
-            <div className="text-sm text-muted">Nothing pending review right now — send a live risky prompt from Try It Live to populate this queue.</div>
+            <div className="text-sm text-muted-2">Nothing pending review right now — send a live risky prompt from Try It Live to populate this queue.</div>
           </Card>
         )}
-        <div className="space-y-4">
-          {pending.map((item) => (
-            <Card key={item.id}>
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div>
-                  <div className="text-xs text-muted">{item.app_name}</div>
-                  <div className="text-sm font-medium mt-0.5">{item.prompt}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <Badge
-                    className={
-                      item.decision === "auto_block_alert"
-                        ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
-                        : "text-amber-400 bg-amber-400/10 border-amber-400/30"
-                    }
-                  >
-                    {decisionLabel(item.decision)}
-                  </Badge>
-                  <div className="mt-1">
-                    <Countdown deadlineMs={item.deadlineMs} />
+        <AnimatePresence initial={false}>
+          <div className="space-y-4">
+            {pending.map((item) => (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card>
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div>
+                      <div className="text-xs text-muted-2">{item.app_name}</div>
+                      <div className="text-sm font-medium mt-0.5">{item.prompt}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge
+                        className={
+                          item.decision === "auto_block_alert"
+                            ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
+                            : "text-amber-400 bg-amber-400/10 border-amber-400/30"
+                        }
+                      >
+                        {decisionLabel(item.decision)}
+                      </Badge>
+                      <div className="mt-1.5">
+                        <Countdown deadlineMs={item.deadlineMs} />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="text-sm bg-surface-2 rounded-lg p-3 mb-3 whitespace-pre-wrap">{item.response}</div>
-              <div className="mb-3">
-                <FlagList flags={item.flags} />
-              </div>
-              {editingId === item.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    rows={3}
-                    className="w-full bg-surface-2 border border-border rounded-lg p-2 text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={() => submitEdit(item.id)}>Save edited response</Button>
-                    <Button variant="ghost" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </Button>
+                  <div className="text-sm bg-surface-2 rounded-xl p-3 mb-3 whitespace-pre-wrap">{item.response}</div>
+                  <div className="mb-3">
+                    <FlagList flags={item.flags} />
                   </div>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Button onClick={() => act(item.id, "approve")}>Approve</Button>
-                  <Button variant="secondary" onClick={() => act(item.id, "edit")}>
-                    Edit & Approve
-                  </Button>
-                  <Button variant="danger" onClick={() => act(item.id, "reject")}>
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
+                  {editingId === item.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={3}
+                        className="w-full bg-surface-2 border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                      />
+                      <div className="flex gap-2">
+                        <Button onClick={() => submitEdit(item.id)}>Save edited response</Button>
+                        <Button variant="ghost" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button onClick={() => act(item.id, "approve")}>Approve</Button>
+                      <Button variant="secondary" onClick={() => act(item.id, "edit")}>
+                        Edit & Approve
+                      </Button>
+                      <Button variant="danger" onClick={() => act(item.id, "reject")}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </AnimatePresence>
       </div>
 
       <div>
-        <div className="text-sm font-medium mb-3">Recently Resolved ({resolved.length})</div>
+        <SectionLabel>Recently Resolved ({resolved.length})</SectionLabel>
         <Card className="p-0 overflow-hidden">
           <div className="max-h-96 overflow-y-auto divide-y divide-border">
             {resolved.map((item) => (
-              <div key={item.id} className="p-3 flex items-center justify-between text-sm">
+              <div key={item.id} className="p-3.5 flex items-center justify-between text-sm">
                 <div className="min-w-0">
                   <div className="truncate">{item.prompt}</div>
-                  <div className="text-xs text-muted">{item.app_name}</div>
+                  <div className="text-xs text-muted-2">{item.app_name}</div>
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <Badge className="text-muted bg-surface-2 border-border">{item.status.replace(/_/g, " ")}</Badge>
-                  <div className="text-xs text-muted mt-0.5">{formatRelativeTime(item.created_at)}</div>
+                  <div className="text-xs text-muted-2 mt-0.5">{formatRelativeTime(item.created_at)}</div>
                 </div>
               </div>
             ))}

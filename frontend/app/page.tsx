@@ -1,13 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { Bell, Lightbulb, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { formatUsd, formatRelativeTime, trustScoreColor } from "@/lib/format";
-import { Card, PageHeader, StatCard, TrustRing } from "@/components/ui";
+import { Card, PageHeader, SectionLabel, StatCard, TrustRing } from "@/components/ui";
 import type { AlertItem, AppSummary, Recommendation, Summary, TrendPoint } from "@/lib/types";
 import Link from "next/link";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const listVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, x: -6 },
+  show: { opacity: 1, x: 0 },
+};
 
 export default function OverviewPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -34,13 +45,15 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <StatCard
           label="Avg TrustScore"
-          value={summary ? summary.avg_trust_score.toFixed(1) : "—"}
+          numericValue={summary?.avg_trust_score ?? 0}
+          decimals={1}
           accentClass={summary ? trustScoreColor(summary.avg_trust_score) : ""}
           sub={`${summary?.total_interactions ?? 0} interactions evaluated`}
         />
         <StatCard
           label="Business Impact at Risk"
-          value={summary ? formatUsd(summary.total_business_impact_usd) : "—"}
+          numericValue={summary?.total_business_impact_usd ?? 0}
+          prefix="$"
           accentClass="text-rose-400"
           sub="Estimated, illustrative assumptions"
         />
@@ -51,13 +64,13 @@ export default function OverviewPage() {
         />
         <StatCard
           label="Pending Human Reviews"
-          value={summary ? String(summary.pending_human_reviews) : "—"}
+          numericValue={summary?.pending_human_reviews ?? 0}
           accentClass="text-amber-400"
           sub="Awaiting SLA-timed decision"
         />
         <StatCard
           label="Critical Incidents"
-          value={summary ? String(summary.critical_incidents) : "—"}
+          numericValue={summary?.critical_incidents ?? 0}
           accentClass="text-rose-400"
           sub="TrustScore < 30"
         />
@@ -65,29 +78,37 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <Card className="xl:col-span-2">
-          <div className="text-sm font-medium mb-4">TrustScore Trend (all apps)</div>
+          <SectionLabel>TrustScore Trend (all apps)</SectionLabel>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trends}>
                 <XAxis dataKey="day" stroke="var(--muted)" fontSize={11} tickLine={false} />
                 <YAxis domain={[0, 100]} stroke="var(--muted)" fontSize={11} tickLine={false} width={30} />
                 <Tooltip
-                  contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", fontSize: 12 }}
+                  contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                 />
-                <Line isAnimationActive={false} type="monotone" dataKey="avg_trust_score" stroke="#6d5efc" strokeWidth={2} dot={false} name="TrustScore" />
+                <Line
+                  isAnimationActive={false}
+                  type="monotone"
+                  dataKey="avg_trust_score"
+                  stroke="var(--accent)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  name="TrustScore"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card>
-          <div className="text-sm font-medium mb-4">Apps Under Management</div>
+          <SectionLabel>Apps Under Management</SectionLabel>
           <div className="space-y-3">
             {apps.map((app) => (
               <div key={app.id} className="flex items-center justify-between border-b border-border/60 last:border-0 pb-3 last:pb-0">
                 <div>
                   <div className="text-sm font-medium">{app.name}</div>
-                  <div className="text-xs text-muted capitalize">{app.app_type.replace("_", " ")}</div>
+                  <div className="text-xs text-muted-2 capitalize">{app.app_type.replace("_", " ")}</div>
                 </div>
                 <div className="text-xs text-muted text-right">
                   <div>{formatUsd(app.daily_spend_usd)} / {formatUsd(app.daily_budget_usd)}</div>
@@ -102,53 +123,54 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-medium">🔔 Smart Alerts</div>
-            <span className="text-xs text-muted">deduplicated, last hour</span>
+            <SectionLabel icon={<Bell size={15} />} className="">Smart Alerts</SectionLabel>
+            <span className="text-xs text-muted-2">deduplicated, last hour</span>
           </div>
-          <div className="space-y-2">
-            {alerts.length === 0 && <div className="text-xs text-muted">No active alerts.</div>}
+          <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-2">
+            {alerts.length === 0 && <div className="text-xs text-muted-2">No active alerts.</div>}
             {alerts.map((a) => (
-              <div key={a.id} className="flex items-start gap-2 text-sm">
+              <motion.div key={a.id} variants={itemVariants} className="flex items-start gap-2 text-sm">
                 <span
-                  className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                    a.severity === "critical" ? "bg-rose-400" : a.severity === "medium" ? "bg-amber-400" : "bg-slate-400"
+                  className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
+                    a.severity === "critical" ? "bg-rose-400 pulse-dot text-rose-400" : a.severity === "medium" ? "bg-amber-400" : "bg-slate-400"
                   }`}
                 />
                 <div className="flex-1">
                   <div className="text-foreground/90">{a.message}</div>
-                  <div className="text-xs text-muted">
+                  <div className="text-xs text-muted-2">
                     {a.count > 1 ? `${a.count}x · ` : ""}
                     {formatRelativeTime(a.updated_at)}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-medium">💡 Top Prescriptive Actions</div>
+            <SectionLabel icon={<Lightbulb size={15} />} className="">Top Prescriptive Actions</SectionLabel>
             <Link href="/impact" className="text-xs text-accent hover:underline">
               view all
             </Link>
           </div>
-          <div className="space-y-3">
-            {recs.length === 0 && <div className="text-xs text-muted">No recommendations yet.</div>}
+          <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-3">
+            {recs.length === 0 && <div className="text-xs text-muted-2">No recommendations yet.</div>}
             {recs.map((r) => (
-              <div key={r.id} className="text-sm">
+              <motion.div key={r.id} variants={itemVariants} className="text-sm">
                 <div className="font-medium">{r.issue}</div>
-                <div className="text-xs text-muted">{r.action}</div>
+                <div className="text-xs text-muted-2">{r.action}</div>
                 <div className="text-xs text-emerald-400 mt-0.5">{formatUsd(r.estimated_value_usd)} potential value</div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </Card>
       </div>
 
-      <div className="mt-8 flex items-center gap-4 text-xs text-muted">
+      <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-muted-2">
         <TrustRing score={summary?.avg_trust_score ?? 100} size={36} />
-        <span>
+        <span className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <ShieldAlert size={13} className="shrink-0" />
           TrustScore = weighted(Performance, Cost, Responsibility) per app policy. See{" "}
           <Link href="/trends" className="text-accent hover:underline">
             Trends
