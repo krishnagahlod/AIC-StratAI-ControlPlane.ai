@@ -1,0 +1,173 @@
+import time
+import uuid
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.db.models import App, Interaction
+from app.db.session import get_db
+from app.evaluation.orchestrator import evaluate_interaction
+from app.proxy import sync_checks
+from app.proxy.llm_client import LLMUnavailableError, generate_chat
+
+router = APIRouter()
+settings = get_settings()
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class RequestMetadata(BaseModel):
+    app_key: str
+    task_type: str = "general"
+
+
+class ChatCompletionRequest(BaseModel):
+    model: str | None = None
+    messages: list[ChatMessage]
+    metadata: RequestMetadata | None = None
+    rag_context: str | None = None
+
+
+def _resolve_app(db: Session, metadata: RequestMetadata | None) -> App:
+    if metadata:
+        app = db.query(App).filter(App.key == metadata.app_key).first()
+        if app:
+            return app
+    fallback = db.query(App).order_by(App.id).first()
+    if fallback is None:
+        raise HTTPException(status_code=400, detail="No apps registered. Run the seed script first.")
+    return fallback
+
+
+def _blocked_response(request_id: str, model: str, reason: str) -> dict:
+    return {
+        "id": request_id,
+        "object": "chat.completion",
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": f"Request blocked by ControlPlane.ai: {reason}"},
+                "finish_reason": "content_filter",
+            }
+        ],
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    }
+
+
+@router.post("/v1/chat/completions")
+def chat_completions(payload: ChatCompletionRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    request_id = f"cpai-{uuid.uuid4().hex[:12]}"
+    app = _resolve_app(db, payload.metadata)
+    model = payload.model or settings.gemini_model
+    task_type = payload.metadata.task_type if payload.metadata else "general"
+
+    user_messages = [m for m in payload.messages if m.role != "system"]
+    system_messages = [m.content for m in payload.messages if m.role == "system"]
+    system_prompt = "\n".join(system_messages) or None
+    original_prompt = user_messages[-1].content if user_messages else ""
+
+    if payload.rag_context:
+        grounding_instruction = (
+            "Answer using ONLY the following source context. If the context does not contain "
+            "the answer, say you don't have that information rather than guessing.\n\n"
+            f"Source context:\n{payload.rag_context}"
+        )
+        system_prompt = f"{system_prompt}\n\n{grounding_instruction}" if system_prompt else grounding_instruction
+
+    if sync_checks.budget_tracker.is_over_budget(app.id, app.daily_budget_usd):
+        interaction = Interaction(
+            app_id=app.id,
+            task_type=task_type,
+            prompt=original_prompt,
+            system_prompt=system_prompt,
+            rag_context=payload.rag_context,
+            raw_response="",
+            delivered_response="",
+            model=model,
+            sync_action="blocked",
+            sync_flags=[{"type": "budget_exceeded"}],
+            source="live",
+        )
+        db.add(interaction)
+        db.commit()
+        return _blocked_response(request_id, model, "daily AI budget for this app has been exceeded")
+
+    prompt_check = sync_checks.check_prompt(original_prompt)
+    if prompt_check.action == "blocked":
+        interaction = Interaction(
+            app_id=app.id,
+            task_type=task_type,
+            prompt=original_prompt,
+            system_prompt=system_prompt,
+            rag_context=payload.rag_context,
+            raw_response="",
+            delivered_response="",
+            model=model,
+            sync_action="blocked",
+            sync_flags=prompt_check.flags,
+            source="live",
+        )
+        db.add(interaction)
+        db.commit()
+        return _blocked_response(request_id, model, "prompt matched a blocked jailbreak/injection pattern")
+
+    sanitized_messages = [m.model_dump() for m in user_messages[:-1]] + [{"role": "user", "content": prompt_check.text}]
+
+    try:
+        llm_result = generate_chat(sanitized_messages, model=model, system_prompt=system_prompt)
+    except LLMUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=f"Upstream LLM temporarily unavailable: {exc}") from exc
+
+    response_check = sync_checks.check_response(llm_result.text)
+
+    interaction = Interaction(
+        app_id=app.id,
+        task_type=task_type,
+        prompt=original_prompt,
+        system_prompt=system_prompt,
+        rag_context=payload.rag_context,
+        raw_response=llm_result.text,
+        delivered_response=response_check.text,
+        model=model,
+        input_tokens=llm_result.input_tokens,
+        output_tokens=llm_result.output_tokens,
+        latency_ms=llm_result.latency_ms,
+        sync_action=response_check.action if response_check.action != "allowed" else prompt_check.action,
+        sync_flags=prompt_check.flags + response_check.flags,
+        source="live",
+    )
+    db.add(interaction)
+    db.commit()
+    db.refresh(interaction)
+
+    background_tasks.add_task(evaluate_interaction, interaction.id)
+
+    return {
+        "id": request_id,
+        "object": "chat.completion",
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": response_check.text},
+                "finish_reason": "content_filter" if response_check.action == "blocked" else "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": llm_result.input_tokens,
+            "completion_tokens": llm_result.output_tokens,
+            "total_tokens": llm_result.input_tokens + llm_result.output_tokens,
+        },
+        "controlplane": {
+            "interaction_id": interaction.id,
+            "sync_action": interaction.sync_action,
+            "sync_flags": interaction.sync_flags,
+            "latency_ms": round(llm_result.latency_ms, 1),
+        },
+    }

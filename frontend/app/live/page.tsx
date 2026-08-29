@@ -1,0 +1,177 @@
+"use client";
+
+import { useState } from "react";
+import { api } from "@/lib/api";
+import { usePolling } from "@/lib/hooks";
+import { formatRelativeTime, formatUsd, riskLevelColor } from "@/lib/format";
+import { Badge, Card, FlagList, PageHeader, TrustRing } from "@/components/ui";
+import AppFilter from "@/components/AppFilter";
+import type { AppSummary, InteractionSummary } from "@/lib/types";
+
+function SyncActionBadge({ action }: { action: string }) {
+  const styles: Record<string, string> = {
+    allowed: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
+    redacted: "text-amber-400 bg-amber-400/10 border-amber-400/30",
+    blocked: "text-rose-400 bg-rose-400/10 border-rose-400/30",
+  };
+  return <Badge className={styles[action] ?? styles.allowed}>{action}</Badge>;
+}
+
+export default function LiveFeedPage() {
+  const [apps, setApps] = useState<AppSummary[]>([]);
+  const [appId, setAppId] = useState<number | null>(null);
+  const [interactions, setInteractions] = useState<InteractionSummary[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<InteractionSummary | null>(null);
+
+  usePolling(() => {
+    api.listApps().then(setApps).catch(console.error);
+  }, 15000);
+
+  usePolling(() => {
+    api
+      .listInteractions({ appId, limit: 60 })
+      .then((rows) => setInteractions(rows.slice().reverse()))
+      .catch(console.error);
+  }, 3000, [appId]);
+
+  usePolling(() => {
+    if (selectedId == null) {
+      setDetail(null);
+      return;
+    }
+    api.getInteraction(selectedId).then(setDetail).catch(console.error);
+  }, 3000, [selectedId]);
+
+  return (
+    <div>
+      <PageHeader title="Live Feed & Trace Explorer" description="Every request-response pair flowing through the proxy, with full evaluation traces." />
+
+      <div className="mb-4">
+        <AppFilter apps={apps} value={appId} onChange={setAppId} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <Card className="xl:col-span-2 p-0 overflow-hidden">
+          <div className="max-h-[75vh] overflow-y-auto divide-y divide-border">
+            {interactions.length === 0 && <div className="p-4 text-sm text-muted">No interactions yet.</div>}
+            {interactions.map((i) => (
+              <button
+                key={i.id}
+                onClick={() => setSelectedId(i.id)}
+                className={`w-full text-left p-4 hover:bg-surface-2 transition-colors ${
+                  selectedId === i.id ? "bg-surface-2" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-xs text-muted">{i.app_name} · {i.source}</div>
+                    <div className="text-sm truncate font-medium">{i.prompt}</div>
+                  </div>
+                  {i.evaluation && (
+                    <span className={`shrink-0 text-sm font-semibold ${riskLevelColor(i.evaluation.risk_level).split(" ")[0]}`}>
+                      {Math.round(i.evaluation.trust_score)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <SyncActionBadge action={i.sync_action} />
+                  {i.evaluation && i.evaluation.flags.length > 0 && (
+                    <Badge className="text-muted bg-surface-2 border-border">{i.evaluation.flags.length} flag(s)</Badge>
+                  )}
+                  <span className="text-xs text-muted ml-auto">{formatRelativeTime(i.created_at)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="xl:col-span-3">
+          {!detail && <div className="text-sm text-muted">Select an interaction to see its full evaluation trace.</div>}
+          {detail && (
+            <div className="space-y-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-xs text-muted">{detail.app_name} · {detail.task_type} · {detail.model}</div>
+                  <div className="text-sm text-muted mt-1">{formatRelativeTime(detail.created_at)} · {detail.latency_ms.toFixed(0)}ms</div>
+                </div>
+                {detail.evaluation && <TrustRing score={detail.evaluation.trust_score} />}
+              </div>
+
+              <div>
+                <div className="text-xs uppercase text-muted mb-1">Prompt</div>
+                <div className="text-sm bg-surface-2 rounded-lg p-3 whitespace-pre-wrap">{detail.prompt}</div>
+              </div>
+
+              {detail.rag_context && (
+                <div>
+                  <div className="text-xs uppercase text-muted mb-1">Source / RAG Context</div>
+                  <div className="text-sm bg-surface-2 rounded-lg p-3 whitespace-pre-wrap">{detail.rag_context}</div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs uppercase text-muted mb-1">Delivered Response <SyncActionBadge action={detail.sync_action} /></div>
+                <div className="text-sm bg-surface-2 rounded-lg p-3 whitespace-pre-wrap">{detail.response}</div>
+              </div>
+
+              {detail.raw_response && detail.raw_response !== detail.response && (
+                <div>
+                  <div className="text-xs uppercase text-muted mb-1">Raw Model Output (pre-redaction, internal only)</div>
+                  <div className="text-sm bg-rose-500/5 border border-rose-500/20 rounded-lg p-3 whitespace-pre-wrap">
+                    {detail.raw_response}
+                  </div>
+                </div>
+              )}
+
+              {detail.evaluation && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-muted">Performance</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.performance_score}</div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-muted">Cost</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.cost_score}</div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-muted">Responsibility</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.responsibility_score}</div>
+                  </div>
+                </div>
+              )}
+
+              {detail.evaluation && (
+                <div>
+                  <div className="text-xs uppercase text-muted mb-2">Flags</div>
+                  <FlagList flags={detail.evaluation.flags} />
+                </div>
+              )}
+
+              {detail.business_impact && detail.business_impact.risk_category !== "none" && (
+                <div>
+                  <div className="text-xs uppercase text-muted mb-1">Business Impact</div>
+                  <div className="text-sm bg-surface-2 rounded-lg p-3">
+                    <div className="font-medium text-rose-400 mb-1">
+                      {formatUsd(detail.business_impact.estimated_impact_usd)} · {detail.business_impact.risk_category}
+                    </div>
+                    {detail.business_impact.narrative}
+                  </div>
+                </div>
+              )}
+
+              {detail.escalation && (
+                <div>
+                  <div className="text-xs uppercase text-muted mb-1">Escalation</div>
+                  <Badge className={riskLevelColor(detail.evaluation?.risk_level ?? "minimal")}>
+                    {detail.escalation.decision.replace(/_/g, " ")} · {detail.escalation.status}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
