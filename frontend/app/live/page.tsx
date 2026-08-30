@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Eraser, Filter, ShieldX } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { formatRelativeTime, formatUsd, riskLevelColor } from "@/lib/format";
@@ -18,12 +19,53 @@ function SyncActionBadge({ action }: { action: string }) {
   return <Badge className={styles[action] ?? styles.allowed}>{action}</Badge>;
 }
 
+/** A blocked or redacted interaction scores high because the control worked. Leading with
+ *  the numeric ring makes a stopped attack look "pretty trustworthy", so the outcome is
+ *  stated in words first and the score is demoted to supporting evidence. */
+function InterventionBanner({ action }: { action: string }) {
+  if (action !== "blocked" && action !== "redacted") return null;
+  const blocked = action === "blocked";
+  return (
+    <div
+      className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 ${
+        blocked ? "bg-rose-50 border-rose-200 text-rose-800" : "bg-amber-50 border-amber-200 text-amber-800"
+      }`}
+    >
+      {blocked ? <ShieldX size={16} className="mt-0.5 shrink-0" /> : <Eraser size={16} className="mt-0.5 shrink-0" />}
+      <div>
+        <div className="text-sm font-semibold tracking-tight">
+          {blocked ? "Threat neutralised — request never reached the model" : "PII auto-redacted before delivery"}
+        </div>
+        <div className="text-xs mt-0.5 opacity-90">
+          {blocked
+            ? "TrustScore stays high because the control worked. The score measures the platform's response, not the attacker's intent."
+            : "The raw model output contained sensitive data. It was rewritten in the sync path before the user saw it — the raw version is shown below for audit."}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LiveFeedPage() {
   const [apps, setApps] = useState<AppSummary[]>([]);
   const [appId, setAppId] = useState<number | null>(null);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [interactions, setInteractions] = useState<InteractionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<InteractionSummary | null>(null);
+
+  // Changing the app filter must clear the selection: otherwise the detail panel keeps
+  // showing a trace from an app the filter has since excluded, so the evidence on screen
+  // contradicts the dropdown above it.
+  function changeApp(next: number | null) {
+    setAppId(next);
+    setSelectedId(null);
+    setDetail(null);
+  }
+
+  const visible = flaggedOnly
+    ? interactions.filter((i) => (i.evaluation?.flags.length ?? 0) > 0 || i.sync_action !== "allowed")
+    : interactions;
 
   usePolling(() => {
     api.listApps().then(setApps).catch(console.error);
@@ -48,15 +90,34 @@ export default function LiveFeedPage() {
     <div>
       <PageHeader title="Live Feed & Trace Explorer" description="Every request-response pair flowing through the proxy, with full evaluation traces." />
 
-      <div className="mb-4 overflow-x-auto no-scrollbar">
-        <AppFilter apps={apps} value={appId} onChange={setAppId} />
+      <div className="mb-4 flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
+        <AppFilter apps={apps} value={appId} onChange={changeApp} />
+        <button
+          onClick={() => setFlaggedOnly((v) => !v)}
+          aria-pressed={flaggedOnly}
+          className={`shrink-0 inline-flex items-center gap-2 h-10 px-3.5 rounded-xl border text-sm font-medium transition-colors duration-150 ${
+            flaggedOnly
+              ? "bg-accent-tint border-accent/30 text-accent-deep"
+              : "bg-white border-border text-muted hover:text-foreground hover:border-border-strong"
+          }`}
+        >
+          <Filter size={15} />
+          Flagged only
+          {flaggedOnly && <span className="text-xs opacity-70">({visible.length})</span>}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className="xl:col-span-2 p-0 overflow-hidden">
           <div className="max-h-[75vh] overflow-y-auto divide-y divide-border">
-            {interactions.length === 0 && <div className="p-4 text-sm text-muted-2">No interactions yet.</div>}
-            {interactions.map((i) => (
+            {visible.length === 0 && (
+              <div className="p-4 text-sm text-muted-2">
+                {flaggedOnly
+                  ? "No flagged interactions in this window — every request passed all three analyzers."
+                  : "No interactions yet. Send one from Try It Live to see the pipeline run."}
+              </div>
+            )}
+            {visible.map((i) => (
               <motion.button
                 key={i.id}
                 layout
@@ -98,13 +159,25 @@ export default function LiveFeedPage() {
               transition={{ duration: 0.2 }}
               className="space-y-5"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-xs text-muted-2">{detail.app_name} · {detail.task_type} · {detail.model}</div>
                   <div className="text-sm text-muted mt-1">{formatRelativeTime(detail.created_at)} · {detail.latency_ms.toFixed(0)}ms</div>
                 </div>
-                {detail.evaluation && <TrustRing score={detail.evaluation.trust_score} />}
+                {detail.evaluation &&
+                  (detail.sync_action === "allowed" ? (
+                    <TrustRing score={detail.evaluation.trust_score} />
+                  ) : (
+                    <div className="text-right shrink-0">
+                      <div className="text-xs uppercase tracking-wide text-muted-2">TrustScore</div>
+                      <div className="text-lg font-semibold text-muted">
+                        {Math.round(detail.evaluation.trust_score)}
+                      </div>
+                    </div>
+                  ))}
               </div>
+
+              <InterventionBanner action={detail.sync_action} />
 
               <div>
                 <div className="text-xs uppercase text-muted-2 mb-1.5">Prompt</div>
