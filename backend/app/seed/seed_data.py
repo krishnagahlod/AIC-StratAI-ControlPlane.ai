@@ -1,8 +1,8 @@
 import datetime
 import random
 
-from app.db.models import Alert, App, BusinessImpact, Escalation, Evaluation, Interaction, Recommendation, utcnow
-from app.db.session import SessionLocal
+from app.db.models import Alert, App, Base, BusinessImpact, Escalation, Evaluation, Interaction, Recommendation, utcnow
+from app.db.session import SessionLocal, engine
 from app.evaluation.cost_analyzer import compute_cost
 from app.evaluation.scoring import (
     PERFORMANCE_PENALTY_BY_SEVERITY,
@@ -398,6 +398,7 @@ def _random_timestamp(days_ago_max: int, recency_bias: bool) -> datetime.datetim
 
 
 def run():
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         db.query(Alert).delete()
