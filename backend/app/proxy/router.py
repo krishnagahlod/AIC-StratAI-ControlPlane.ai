@@ -1,3 +1,5 @@
+import logging
+import re
 import time
 import uuid
 
@@ -14,6 +16,7 @@ from app.proxy.llm_client import LLMUnavailableError, generate_chat
 
 router = APIRouter()
 settings = get_settings()
+logger = logging.getLogger("controlplane.proxy")
 
 
 class ChatMessage(BaseModel):
@@ -42,6 +45,50 @@ def _resolve_app(db: Session, metadata: RequestMetadata | None) -> App:
     if fallback is None:
         raise HTTPException(status_code=400, detail="No apps registered. Run the seed script first.")
     return fallback
+
+
+def _friendly_llm_error(exc: Exception) -> str:
+    """Turn a provider exception into something a human can act on.
+
+    The raw google-genai error is a multi-line JSON blob with quota metadata and help
+    links. Surfacing that verbatim in the UI is unreadable, and on a recorded demo it
+    looks like a crash rather than a rate limit.
+    """
+    text = str(exc)
+    if "RESOURCE_EXHAUSTED" in text or "429" in text:
+        retry = re.search(r"retry in ([\d.]+)s", text, re.I) or re.search(r"'retryDelay': '(\d+)s'", text)
+        wait = f" Retry in about {int(float(retry.group(1)))}s." if retry else ""
+        return (
+            "The upstream model provider has hit its request quota for every configured "
+            f"model tier.{wait} The evaluation pipeline is unaffected — only new live calls are blocked."
+        )
+    if "API key" in text or "API_KEY" in text or "PERMISSION_DENIED" in text:
+        return "The upstream model rejected our API key. Check GEMINI_API_KEY in backend/.env and restart the backend."
+    return "The upstream model provider is temporarily unavailable. Please retry shortly."
+
+
+def _generate_with_fallback(messages: list[dict], model: str, system_prompt: str | None):
+    """Try the requested model, then the cheaper judge tier, before giving up.
+
+    Free-tier Gemini quotas are per-model *per day*, so a single exhausted model would
+    otherwise take the whole proxy down even while another tier still has headroom.
+    Returns the result and the model that actually served it, so the trace records what
+    was really called rather than what was asked for.
+    """
+    candidates = [model]
+    judge = settings.gemini_judge_model
+    if judge and judge not in candidates:
+        candidates.append(judge)
+
+    last_exc: Exception | None = None
+    for candidate in candidates:
+        try:
+            return generate_chat(messages, model=candidate, system_prompt=system_prompt), candidate
+        except LLMUnavailableError as exc:
+            logger.warning("Model %s unavailable, trying next tier: %s", candidate, exc)
+            last_exc = exc
+
+    raise HTTPException(status_code=503, detail=_friendly_llm_error(last_exc))
 
 
 def _block_message(reason: str) -> str:
@@ -146,10 +193,7 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
 
     sanitized_messages = [m.model_dump() for m in user_messages[:-1]] + [{"role": "user", "content": prompt_check.text}]
 
-    try:
-        llm_result = generate_chat(sanitized_messages, model=model, system_prompt=system_prompt)
-    except LLMUnavailableError as exc:
-        raise HTTPException(status_code=503, detail=f"Upstream LLM temporarily unavailable: {exc}") from exc
+    llm_result, model = _generate_with_fallback(sanitized_messages, model, system_prompt)
 
     response_check = sync_checks.check_response(llm_result.text)
 

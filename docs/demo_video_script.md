@@ -267,11 +267,17 @@ Keep only the **★** scenes and trim narration to the bolded claims:
 
 | Symptom | What's happening | Do this |
 |---|---|---|
-| Narratives look plain, badge says "Upstream LLM unavailable" | Gemini free-tier daily quota exhausted (flash-lite caps at 20/day) | The deterministic fallback is a real report — you can narrate it as designed graceful degradation. Or wait for quota reset and re-record Scene 7 only |
+| Narratives look plain, badge says "Upstream LLM unavailable" | Both Gemini tiers hit their daily quota (free tier caps at **20 requests per day per model**) | The deterministic fallback is a real report — you can narrate it as designed graceful degradation. Or wait for the quota window and re-record Scene 7 only |
+| Try It Live shows "the upstream model provider has hit its request quota" | Same cause, on the live proxy path | The proxy already retried the second model tier before showing this. Nothing to fix live — re-take later, or cut Scene 10's clean-request half and keep the jailbreak half, which never calls a model at all |
+| A 429 / quota error right after changing the API key | The backend caches settings and builds its model client at import | **Restart the backend.** Also confirm you edited `controlplane-ai/backend/.env` — a stray `.env` at the repo parent is not read by anything |
 | Amber "Backend unreachable" banner appears | Backend died | Stop. Restart it. The banner clears itself within one poll cycle — no reload needed. Re-take the scene |
 | Review queue is empty | SLA expired | Click "Arm review queue", wait 2 seconds, re-take Scene 8 |
-| Try It Live evaluation never completes | Judge model rate-limited | The page shows a timeout state. Re-run; or narrate the sync half only and cut before the async reveal |
 | Same prompt text appears repeatedly in the feed | You're on stale seed data | Re-seed. Current seed has 52 distinct prompts |
+
+> **Quota budgeting for the shoot.** The free tier allows ~20 requests per day *per model*,
+> and the proxy now spans two tiers. Scene 7 costs up to 3 calls (one per persona, then
+> cached for 10 minutes) and Scene 10 costs 1–2. Warm the narrator once during setup and
+> avoid re-running Try It Live more than a few times, and you will not come close to the cap.
 
 ---
 
