@@ -26,6 +26,13 @@ Five minutes of setup that prevents every failure mode we found in testing.
 | 7 | **Check the sidebar reads "Backend connected"** (green dot) | Confirms the whole stack is live before you start |
 | 8 | Browser at **1440×900**, zoom 100%, bookmarks bar hidden, notifications off | Consistent framing, nothing personal on screen |
 
+**Do not demo the "Hallucination bait" preset live.** Each app now has a configured system
+prompt telling it not to guess beyond its source material, so that preset usually answers
+*correctly* now — which is the right product behaviour and a bad demo beat. Use the seeded
+hallucination examples in the Live Feed (Scene 3) for that story, and the deterministic
+**Jailbreak** preset for the live one. This was already the audit's recommendation; the
+system prompts make it firm.
+
 **Two known conditions to route around, not fix on the day:**
 - **"Critical Incidents" on the Overview will read 0.** It counts TrustScore < 30, and nothing in the seeded set scores that low. Don't point the cursor at it. The script never mentions it.
 - **"Pending Human Reviews" reads 0 until you arm the queue.** Do step 5 before Scene 2, not just before Scene 8, so the Overview stat is non-zero when you first show it.
@@ -59,6 +66,8 @@ Five minutes of setup that prevents every failure mode we found in testing.
 > The second number is the one executives actually react to: **five hundred and ninety thousand dollars of estimated business exposure**. That is not a technical metric. Every flag this system raises gets converted into a dollar figure using documented assumptions — and I'll show you exactly where those come from later.
 >
 > On the right, the three applications we're monitoring. This is the important detail: each one is governed by **different maths**. The customer-facing support bot weights Responsibility at thirty-five percent. The internal copilot weights Cost at forty percent, because internal tools are where token waste hides. The underwriting tool weights Responsibility at fifty-five percent, because a bad decision there is a regulated event.
+>
+> Each one also carries its own operating instruction and its own latency budget — four seconds for the support bot, twelve for underwriting, because an underwriter will wait for a considered answer and a customer will not.
 >
 > One-size-fits-all governance is exactly what the brief warns against, and it's what Gartner predicts will cause enterprise agent programmes to fail. Every application here has its own policy."
 
