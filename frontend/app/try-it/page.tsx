@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge, Button, Card, FlagList, PageHeader, TrustRing } from "@/components/ui";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
@@ -43,6 +43,7 @@ export default function TryItLivePage() {
   const [immediate, setImmediate] = useState<{ content: string; syncAction: string; syncFlags: unknown[] } | null>(null);
   const [detail, setDetail] = useState<InteractionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [evalState, setEvalState] = useState<"idle" | "running" | "done" | "failed" | "timeout">("idle");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function TryItLivePage() {
     setError(null);
     setImmediate(null);
     setDetail(null);
+    setEvalState("running");
     if (pollRef.current) clearInterval(pollRef.current);
 
     try {
@@ -72,16 +74,38 @@ export default function TryItLivePage() {
       const id = res.controlplane.interaction_id;
 
       let attempts = 0;
+      let failures = 0;
+      const stop = () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+      };
+      // This callback is async: without its own try/catch a backend failure mid-poll
+      // rejects unhandled every interval and the timer is never cleared.
       pollRef.current = setInterval(async () => {
         attempts += 1;
-        const d = await api.getInteraction(id);
-        setDetail(d);
-        if (d.evaluation || attempts > 15) {
-          if (pollRef.current) clearInterval(pollRef.current);
+        try {
+          const d = await api.getInteraction(id);
+          setDetail(d);
+          failures = 0;
+          if (d.evaluation) {
+            setEvalState("done");
+            stop();
+          }
+        } catch {
+          failures += 1;
+          if (failures >= 3) {
+            setEvalState("failed");
+            stop();
+          }
+        }
+        if (attempts > 15) {
+          setEvalState((s) => (s === "running" ? "timeout" : s));
+          stop();
         }
       }, 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setEvalState("idle");
     } finally {
       setSending(false);
     }
@@ -153,7 +177,12 @@ export default function TryItLivePage() {
               {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               {sending ? "Sending through proxy…" : "Send Request"}
             </Button>
-            {error && <p className="text-sm text-rose-600">{error}</p>}
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -188,10 +217,24 @@ export default function TryItLivePage() {
 
                 <div className="border-t border-border pt-4">
                   <div className="text-xs uppercase text-muted-2 mb-2">Async Evaluation (Control Plane + Intelligence Layer)</div>
-                  {!detail?.evaluation && (
+                  {!detail?.evaluation && evalState === "running" && (
                     <div className="flex items-center gap-2 text-sm text-muted">
                       <Loader2 size={14} className="animate-spin" />
                       Running Performance / Cost / Responsibility analyzers…
+                    </div>
+                  )}
+                  {!detail?.evaluation && evalState === "failed" && (
+                    <div className="flex items-start gap-2 text-sm text-rose-600">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      Lost contact with the backend while the evaluation was running. The request
+                      itself was delivered — reload once the connection is back to see its trace.
+                    </div>
+                  )}
+                  {!detail?.evaluation && evalState === "timeout" && (
+                    <div className="flex items-start gap-2 text-sm text-amber-700">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      Evaluation is taking longer than usual (the LLM-as-judge checks may be
+                      rate-limited). It will appear in the Live Feed once it completes.
                     </div>
                   )}
                   {detail?.evaluation && (

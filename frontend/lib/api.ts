@@ -11,19 +11,34 @@ import type {
   Summary,
   TrendPoint,
 } from "./types";
+import { markFailure, markSuccess } from "./connection";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
+// Single choke point for every backend call, so connectivity is tracked in one
+// place instead of being re-implemented (or forgotten) in each page.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      cache: "no-store",
+    });
+  } catch (err) {
+    // Network-level failure: backend down, DNS, connection refused.
+    markFailure(err instanceof Error ? err.message : String(err));
+    throw new Error(`Cannot reach the ControlPlane.ai backend at ${API_BASE}. Is it running?`);
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    // The server answered, so we are connected — this is an application error.
+    markSuccess();
     throw new Error(`Request to ${path} failed (${res.status}): ${body}`);
   }
+
+  markSuccess();
   return res.json() as Promise<T>;
 }
 

@@ -12,6 +12,7 @@ import {
   FlaskConical,
   Play,
 } from "lucide-react";
+import { ConnectionDot } from "@/components/ConnectionStatus";
 
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -75,6 +76,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="px-5 py-4 border-t border-border text-[11px] text-muted-2 leading-relaxed">
+        <ConnectionDot />
         Team StratAI · IIT Bombay
         <br />
         Accenture Innovation Challenge 2026

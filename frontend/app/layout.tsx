@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Public_Sans } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import PageTransition from "@/components/PageTransition";
+import { ConnectionBanner } from "@/components/ConnectionStatus";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex bg-page-plane text-foreground overflow-x-hidden">
         <Sidebar />
+        <ConnectionBanner />
         <div className="flex-1 min-w-0 relative">
           <div className="mesh-backdrop" aria-hidden="true" />
           <main className="relative p-6 md:p-8 max-w-[1600px] mx-auto">
