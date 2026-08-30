@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Filter } from "lucide-react";
+import Link from "next/link";
+import { Download, FileText, Filter } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { formatRelativeTime, formatUsd, riskLevelColor } from "@/lib/format";
@@ -224,6 +225,22 @@ export default function LiveFeedPage() {
                   </Badge>
                 </div>
               )}
+
+              {/* The artifact a compliance officer actually has to produce for an auditor. */}
+              <div className="border-t border-border pt-4 flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/evidence/${detail.id}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                >
+                  <FileText size={15} /> Evidence pack
+                </Link>
+                <a
+                  href={api.flaggedCsvUrl(appId, 14)}
+                  className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
+                >
+                  <Download size={15} /> Export all findings (CSV)
+                </a>
+              </div>
             </motion.div>
           )}
         </Card>

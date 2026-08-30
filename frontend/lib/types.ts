@@ -149,6 +149,68 @@ export interface PlaygroundMetrics {
   f1: number;
 }
 
+export interface EvidenceFinding {
+  type: string;
+  dimension: string;
+  severity: string;
+  detection_method: string;
+  finding: string;
+  evidence?: Record<string, unknown> | null;
+  action_taken?: string | null;
+}
+
+export interface EvidencePack {
+  evidence_pack_version: string;
+  generated_at: string;
+  interaction: {
+    id: number;
+    timestamp: string;
+    application: string | null;
+    application_type: string | null;
+    task_type: string;
+    model: string;
+    latency_ms: number;
+    input_tokens: number;
+    output_tokens: number;
+    source: string;
+  };
+  content: {
+    prompt: string;
+    source_context: string | null;
+    raw_model_output: string;
+    delivered_to_user: string;
+    was_modified_before_delivery: boolean;
+  };
+  controls_applied: { sync_action: string; sync_flags: Array<Record<string, unknown>> };
+  evaluation: {
+    trust_score: number;
+    risk_level: string;
+    performance_score: number;
+    cost_score: number;
+    responsibility_score: number;
+    policy_weights: { performance: number; cost: number; responsibility: number };
+    estimated_cost_usd: number;
+    findings: EvidenceFinding[];
+  } | null;
+  business_impact: {
+    risk_category: string;
+    estimated_impact_usd: number;
+    affected_users: number;
+    confidence: number;
+    basis: string;
+    note: string;
+  } | null;
+  governance_decision: {
+    decision: string;
+    status: string;
+    sla_seconds: number | null;
+    sla_deadline: string | null;
+    reviewer_decision: string | null;
+    reviewer_note: string | null;
+    decided_at: string | null;
+  } | null;
+}
+
 export interface GroundingVerdict {
   status: "verified" | "corrected" | "fallback" | "unavailable";
   passed: boolean;

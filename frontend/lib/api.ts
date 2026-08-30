@@ -1,6 +1,7 @@
 import type {
   AlertItem,
   AppSummary,
+  EvidencePack,
   ImpactBreakdownItem,
   InteractionSummary,
   NarrativeResponse,
@@ -106,6 +107,15 @@ export const api = {
     const qs = new URLSearchParams();
     if (appId) qs.set("app_id", String(appId));
     return request<PlaygroundRecommendation>(`/api/playground/recommend?${qs.toString()}`);
+  },
+
+  getEvidence: (id: number) => request<EvidencePack>(`/api/interactions/${id}/evidence`),
+
+  /** Server-generated CSV; the browser handles the download, so no blob juggling here. */
+  flaggedCsvUrl: (appId?: number | null, days = 14) => {
+    const qs = new URLSearchParams({ days: String(days) });
+    if (appId) qs.set("app_id", String(appId));
+    return `${API_BASE}/api/export/flagged.csv?${qs.toString()}`;
   },
 
   demoStatus: () => request<{ demo_mode: boolean; pending_reviews: number }>("/api/demo/status"),
