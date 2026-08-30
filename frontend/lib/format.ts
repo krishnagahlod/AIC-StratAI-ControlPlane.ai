@@ -3,6 +3,26 @@ export function formatUsd(value: number): string {
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Axis-tick money formatter for series whose magnitude we don't know ahead of time.
+ *
+ * Per-call LLM cost is genuinely sub-cent, so a fixed 2-decimal format collapses
+ * every tick to "$0.00" while a fixed 4-decimal format wastes width on larger
+ * series. The decimal count is chosen from the series maximum so the ticks are
+ * always distinguishable from each other.
+ */
+export function formatUsdAxis(value: number, seriesMax: number): string {
+  if (seriesMax < 0.001) return `$${value.toFixed(5)}`;
+  if (seriesMax < 0.1) return `$${value.toFixed(4)}`;
+  if (seriesMax < 100) return `$${value.toFixed(2)}`;
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+/** Width the Y-axis needs for the widest tick label the formatter above will emit. */
+export function usdAxisWidth(seriesMax: number): number {
+  return formatUsdAxis(seriesMax, seriesMax).length * 7 + 12;
+}
+
 export function formatRelativeTime(iso: string): string {
   const then = new Date(iso.endsWith("Z") ? iso : `${iso}Z`).getTime();
   const diffMs = Date.now() - then;

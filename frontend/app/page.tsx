@@ -6,7 +6,7 @@ import { Bell, Lightbulb, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { formatUsd, formatRelativeTime, trustScoreColor } from "@/lib/format";
-import { Card, PageHeader, SectionLabel, StatCard, TrustRing } from "@/components/ui";
+import { Card, PageHeader, SectionLabel, Skeleton, StatCard, TrustRing } from "@/components/ui";
 import type { AlertItem, AppSummary, Recommendation, Summary, TrendPoint } from "@/lib/types";
 import Link from "next/link";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -21,11 +21,14 @@ const itemVariants = {
 };
 
 export default function OverviewPage() {
+  // `null` means "not loaded yet", `[]` means "loaded and genuinely empty". Collapsing
+  // those two into one value is what made the dashboard show a confident 0/$0 on first
+  // paint, and an identical-looking empty shell when the backend was unreachable.
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [apps, setApps] = useState<AppSummary[]>([]);
-  const [trends, setTrends] = useState<TrendPoint[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [apps, setApps] = useState<AppSummary[] | null>(null);
+  const [trends, setTrends] = useState<TrendPoint[] | null>(null);
+  const [alerts, setAlerts] = useState<AlertItem[] | null>(null);
+  const [recs, setRecs] = useState<Recommendation[] | null>(null);
 
   usePolling(() => {
     api.getSummary(14).then(setSummary).catch(console.error);
@@ -34,6 +37,8 @@ export default function OverviewPage() {
     api.listAlerts(8).then(setAlerts).catch(console.error);
     api.listRecommendations().then((r) => setRecs(r.slice(0, 5))).catch(console.error);
   }, 8000);
+
+  const loading = summary === null;
 
   return (
     <div>
@@ -45,6 +50,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <StatCard
           label="Avg TrustScore"
+          loading={loading}
           numericValue={summary?.avg_trust_score ?? 0}
           decimals={1}
           accentClass={summary ? trustScoreColor(summary.avg_trust_score) : ""}
@@ -52,6 +58,7 @@ export default function OverviewPage() {
         />
         <StatCard
           label="Business Impact at Risk"
+          loading={loading}
           numericValue={summary?.total_business_impact_usd ?? 0}
           prefix="$"
           accentClass="text-rose-600"
@@ -59,17 +66,20 @@ export default function OverviewPage() {
         />
         <StatCard
           label="AI Spend"
+          loading={loading}
           value={summary ? formatUsd(summary.total_ai_spend_usd) : "—"}
           sub="Across all monitored apps"
         />
         <StatCard
           label="Pending Human Reviews"
+          loading={loading}
           numericValue={summary?.pending_human_reviews ?? 0}
           accentClass="text-amber-700"
           sub="Awaiting SLA-timed decision"
         />
         <StatCard
           label="Critical Incidents"
+          loading={loading}
           numericValue={summary?.critical_incidents ?? 0}
           accentClass="text-rose-600"
           sub="TrustScore < 30"
@@ -80,6 +90,11 @@ export default function OverviewPage() {
         <Card className="xl:col-span-2">
           <SectionLabel>TrustScore Trend (all apps)</SectionLabel>
           <div className="h-64">
+            {trends === null ? (
+              <div className="h-full flex flex-col justify-end gap-2 pb-6">
+                <Skeleton className="h-full w-full opacity-60" />
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trends}>
                 <XAxis dataKey="day" stroke="var(--muted)" fontSize={11} tickLine={false} />
@@ -98,13 +113,21 @@ export default function OverviewPage() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Card>
 
         <Card>
           <SectionLabel>Apps Under Management</SectionLabel>
           <div className="space-y-3">
-            {apps.map((app) => (
+            {apps === null &&
+              [0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between pb-3">
+                  <Skeleton className="h-8 w-40" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              ))}
+            {(apps ?? []).map((app) => (
               <div key={app.id} className="flex items-center justify-between border-b border-border/60 last:border-0 pb-3 last:pb-0">
                 <div>
                   <div className="text-sm font-medium">{app.name}</div>
@@ -127,8 +150,13 @@ export default function OverviewPage() {
             <span className="text-xs text-muted-2">deduplicated, last hour</span>
           </div>
           <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-2">
-            {alerts.length === 0 && <div className="text-xs text-muted-2">No active alerts.</div>}
-            {alerts.map((a) => (
+            {alerts === null && [0, 1, 2].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+            {alerts?.length === 0 && (
+              <div className="text-xs text-muted-2">
+                No active alerts — nothing crossed a severity threshold in the last hour.
+              </div>
+            )}
+            {(alerts ?? []).map((a) => (
               <motion.div key={a.id} variants={itemVariants} className="flex items-start gap-2 text-sm">
                 <span
                   className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
@@ -155,8 +183,13 @@ export default function OverviewPage() {
             </Link>
           </div>
           <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-3">
-            {recs.length === 0 && <div className="text-xs text-muted-2">No recommendations yet.</div>}
-            {recs.map((r) => (
+            {recs === null && [0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            {recs?.length === 0 && (
+              <div className="text-xs text-muted-2">
+                No prescriptive actions outstanding — every flagged pattern has a resolution logged.
+              </div>
+            )}
+            {(recs ?? []).map((r) => (
               <motion.div key={r.id} variants={itemVariants} className="text-sm">
                 <div className="font-medium">{r.issue}</div>
                 <div className="text-xs text-muted-2">{r.action}</div>
@@ -168,7 +201,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-muted-2">
-        <TrustRing score={summary?.avg_trust_score ?? 100} size={36} />
+        {summary ? <TrustRing score={summary.avg_trust_score} size={36} /> : <Skeleton className="w-9 h-9 rounded-full" />}
         <span className="flex flex-wrap items-center gap-1.5 min-w-0">
           <ShieldAlert size={13} className="shrink-0" />
           TrustScore = weighted(Performance, Cost, Responsibility) per app policy. See{" "}

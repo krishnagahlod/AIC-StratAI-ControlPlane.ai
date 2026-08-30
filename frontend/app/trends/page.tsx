@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { Card, PageHeader, SectionLabel } from "@/components/ui";
+import { formatUsdAxis, usdAxisWidth } from "@/lib/format";
 import AppFilter from "@/components/AppFilter";
 import type { AppSummary, TrendPoint } from "@/lib/types";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -23,6 +24,7 @@ export default function TrendsPage() {
   }, 5000, [appId, days]);
 
   const tooltipStyle = { background: "#ffffff", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, boxShadow: "0 4px 16px -4px rgba(10,0,17,0.12)" };
+  const maxSpend = trends.length ? Math.max(...trends.map((t) => t.total_cost_usd)) : 0;
 
   return (
     <div>
@@ -80,15 +82,26 @@ export default function TrendsPage() {
           <SectionLabel>Daily AI Spend (USD)</SectionLabel>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trends}>
+              <LineChart data={trends} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="day" stroke="var(--muted-2)" fontSize={11} />
-                <YAxis stroke="var(--muted-2)" fontSize={11} width={40} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <YAxis
+                  stroke="var(--muted-2)"
+                  fontSize={11}
+                  width={usdAxisWidth(maxSpend)}
+                  // Headroom so peak days don't flatten against the top of the plot.
+                  domain={[0, maxSpend > 0 ? maxSpend * 1.15 : "auto"]}
+                  tickFormatter={(v: number) => formatUsdAxis(v, maxSpend)}
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatUsdAxis(Number(v), maxSpend)} />
                 <Line isAnimationActive={false} type="monotone" dataKey="total_cost_usd" name="Cost (USD)" stroke="var(--series-2)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-xs text-muted-2 mt-2">
+            Per-call inference cost is genuinely sub-cent at this volume — the axis scales to keep
+            day-over-day movement legible.
+          </p>
         </Card>
       </div>
     </div>

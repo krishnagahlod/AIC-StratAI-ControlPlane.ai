@@ -44,6 +44,11 @@ function AnimatedNumber({ value, decimals = 0 }: { value: number; decimals?: num
   return <span>{display}</span>;
 }
 
+/** Shimmering placeholder. Distinguishes "we don't know yet" from "the answer is zero". */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-surface-3/70 ${className}`} aria-hidden="true" />;
+}
+
 export function StatCard({
   label,
   value,
@@ -54,6 +59,7 @@ export function StatCard({
   sub,
   accentClass,
   icon,
+  loading = false,
 }: {
   label: string;
   value?: string;
@@ -64,6 +70,7 @@ export function StatCard({
   sub?: string;
   accentClass?: string;
   icon?: React.ReactNode;
+  loading?: boolean;
 }) {
   return (
     <Card className="overflow-hidden">
@@ -71,18 +78,28 @@ export function StatCard({
         <div className="text-xs uppercase tracking-wide text-muted-2 font-medium">{label}</div>
         {icon && <div className="text-accent">{icon}</div>}
       </div>
-      <div className={`text-[28px] font-bold tracking-tight ${accentClass ?? "text-foreground"}`}>
-        {numericValue !== undefined ? (
-          <>
-            {prefix}
-            <AnimatedNumber value={numericValue} decimals={decimals} />
-            {suffix}
-          </>
-        ) : (
-          value
-        )}
-      </div>
-      {sub && <div className="text-xs text-muted-2 mt-1.5">{sub}</div>}
+      {/* A headline metric must never render a confident, fully-styled 0 before its
+          first real value arrives — that reads as "no risk" rather than "loading". */}
+      {loading ? (
+        <Skeleton className="h-[34px] w-24 mt-0.5" />
+      ) : (
+        <div className={`text-[28px] font-bold tracking-tight ${accentClass ?? "text-foreground"}`}>
+          {numericValue !== undefined ? (
+            <>
+              {prefix}
+              <AnimatedNumber value={numericValue} decimals={decimals} />
+              {suffix}
+            </>
+          ) : (
+            value
+          )}
+        </div>
+      )}
+      {sub && (
+        <div className="text-xs text-muted-2 mt-1.5">
+          {loading ? <Skeleton className="h-3 w-32" /> : sub}
+        </div>
+      )}
     </Card>
   );
 }
