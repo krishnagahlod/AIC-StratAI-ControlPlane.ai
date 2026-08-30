@@ -11,7 +11,10 @@ from app.intelligence import executive_narrator
 
 router = APIRouter(prefix="/api/narrator")
 
-_CACHE_TTL_SECONDS = 90
+# An executive health report does not need regenerating every 90 seconds, and a short
+# TTL means repeated tab-switching burns the free-tier rate limit and drops the page
+# onto the deterministic fallback. Ten minutes matches how the artifact is actually read.
+_CACHE_TTL_SECONDS = 600
 _cache: dict[tuple, tuple[float, dict]] = {}
 
 
