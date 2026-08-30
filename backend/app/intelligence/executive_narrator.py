@@ -1,6 +1,6 @@
 from app.config import get_settings
 from app.intelligence import grounding
-from app.proxy.llm_client import generate_text
+from app.proxy.llm_client import generate_text, model_chain
 
 # Each persona asks for a different *register*, never for detail the aggregate
 # stats cannot supply. The original engineer instruction asked the model to name
@@ -110,12 +110,7 @@ def _call(prompt: str) -> str:
     while any model has headroom, and the deterministic template stays as the last resort
     rather than the first thing a quota blip triggers.
     """
-    settings = get_settings()
-    tried: list[str] = []
-    for model in (settings.gemini_judge_model, settings.gemini_model):
-        if model in tried:
-            continue
-        tried.append(model)
+    for model in model_chain(get_settings().gemini_judge_model):
         text = generate_text(prompt, model=model, fallback=_UNAVAILABLE)
         text = (text or "").strip()
         if text and text != _UNAVAILABLE:

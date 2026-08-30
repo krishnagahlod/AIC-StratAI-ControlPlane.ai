@@ -12,7 +12,7 @@ from app.db.models import App, Interaction
 from app.db.session import get_db
 from app.evaluation.orchestrator import evaluate_interaction
 from app.proxy import sync_checks
-from app.proxy.llm_client import LLMUnavailableError, generate_chat
+from app.proxy.llm_client import LLMUnavailableError, generate_chat, model_chain
 
 router = APIRouter()
 settings = get_settings()
@@ -75,13 +75,8 @@ def _generate_with_fallback(messages: list[dict], model: str, system_prompt: str
     Returns the result and the model that actually served it, so the trace records what
     was really called rather than what was asked for.
     """
-    candidates = [model]
-    judge = settings.gemini_judge_model
-    if judge and judge not in candidates:
-        candidates.append(judge)
-
     last_exc: Exception | None = None
-    for candidate in candidates:
+    for candidate in model_chain(model):
         try:
             return generate_chat(messages, model=candidate, system_prompt=system_prompt), candidate
         except LLMUnavailableError as exc:

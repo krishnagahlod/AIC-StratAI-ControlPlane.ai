@@ -18,6 +18,23 @@ class LLMUnavailableError(RuntimeError):
     pass
 
 
+def model_chain(primary: str | None = None) -> list[str]:
+    """Ordered, de-duplicated list of models to try for a single logical call.
+
+    Quota on the free tier is per model, per project, per day — so an exhausted model
+    is a routine condition, not an outage. Walking a ladder keeps the pipeline running
+    on whichever tier still has headroom instead of failing the request.
+    """
+    chain = [primary or settings.gemini_model, settings.gemini_judge_model]
+    chain += [m.strip() for m in settings.gemini_fallback_models.split(",") if m.strip()]
+    seen, out = set(), []
+    for m in chain:
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out
+
+
 @dataclass
 class LLMResult:
     text: str
@@ -52,23 +69,36 @@ def generate_chat(
     inferred_system, contents = _messages_to_contents(messages)
     final_system = system_prompt or inferred_system
 
+    def _config(with_thinking: bool):
+        kwargs = dict(
+            system_instruction=final_system,
+            # Backstop only — brevity is enforced by each app's system prompt. Set
+            # generously so it never truncates a well-behaved answer mid-sentence.
+            max_output_tokens=800,
+            temperature=0.4,
+        )
+        if with_thinking:
+            # Models that reason before answering add ~10s to a short grounded reply,
+            # which buys nothing here and spends the app's latency budget.
+            kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+        return types.GenerateContentConfig(**kwargs)
+
     start = time.perf_counter()
     try:
-        response = _client.models.generate_content(
-            model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=final_system,
-                # 2.5-series models reason before answering by default, which added ~10s to
-                # a simple support answer. These are short, grounded replies where extended
-                # reasoning buys nothing and costs both latency budget and output tokens.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
-                # Backstop only — brevity is enforced by each app's system prompt. This is
-                # set generously so it never truncates a well-behaved answer mid-sentence.
-                max_output_tokens=800,
-                temperature=0.4,
-            ),
-        )
+        try:
+            response = _client.models.generate_content(
+                model=model, contents=contents, config=_config(True)
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Not every model accepts an explicit thinking budget; the newer tiers reject
+            # it with a 400. That is a config incompatibility, not an outage, so drop the
+            # hint and retry rather than burning a fallback hop on it.
+            if "INVALID_ARGUMENT" not in str(exc):
+                raise
+            logger.info("Model %s rejected thinking_config; retrying without it", model)
+            response = _client.models.generate_content(
+                model=model, contents=contents, config=_config(False)
+            )
     except Exception as exc:  # noqa: BLE001 - upstream provider errors are surfaced uniformly
         logger.warning("Gemini generate_chat call failed: %s", exc)
         raise LLMUnavailableError(str(exc)) from exc
@@ -93,18 +123,22 @@ def generate_judge_json(prompt: str, model: str | None = None) -> dict:
     """Best-effort LLM-as-judge call. Returns {} on any failure (rate limit, timeout,
     malformed output) so a single flaky judge call degrades to 'no signal from this
     check' rather than losing the whole evaluation pipeline for an interaction."""
-    model = model or settings.gemini_judge_model
-    try:
-        response = _client.models.generate_content(
-            model=model,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.0,
-            ),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Gemini judge call failed, degrading to no-signal: %s", exc)
+    response = None
+    for candidate in model_chain(model or settings.gemini_judge_model):
+        try:
+            response = _client.models.generate_content(
+                model=candidate,
+                contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.0,
+                ),
+            )
+            break
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Judge model %s unavailable, trying next tier: %s", candidate, exc)
+    if response is None:
+        logger.warning("All judge model tiers exhausted, degrading to no-signal")
         return {}
 
     raw = response.text or "{}"

@@ -7,8 +7,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     gemini_api_key: str
-    gemini_model: str = "gemini-2.5-flash"
-    gemini_judge_model: str = "gemini-2.5-flash-lite"
+    gemini_model: str = "gemini-3-flash-preview"
+    gemini_judge_model: str = "gemini-3.1-flash-lite"
+    # Free-tier Gemini quota is per model, per project, per day. One exhausted model
+    # should degrade to another rather than taking the whole pipeline down, so every
+    # call walks this ladder before giving up. Comma-separated, tried in order.
+    gemini_fallback_models: str = (
+        "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-lite-latest,"
+        "gemini-3.6-flash,gemini-2.5-flash,gemini-2.5-flash-lite"
+    )
     database_url: str = "sqlite:///./controlplane.db"
     # Enables the /api/demo endpoints used to re-arm the Human Review Queue before a
     # recording. Off by default so a deployed instance never exposes them.
@@ -21,10 +28,24 @@ def get_settings() -> Settings:
 
 
 # $ per 1K tokens, illustrative public pricing tiers used for cost attribution math.
+_FLASH = {"input": 0.000075, "output": 0.0003}
+_FLASH_LITE = {"input": 0.00001875, "output": 0.000075}
+_PRO = {"input": 0.00125, "output": 0.005}
 PRICING_TABLE = {
-    "gemini-2.5-pro": {"input": 0.00125, "output": 0.005},
-    "gemini-2.5-flash": {"input": 0.000075, "output": 0.0003},
-    "gemini-2.5-flash-lite": {"input": 0.00001875, "output": 0.000075},
+    "gemini-2.5-pro": _PRO,
+    "gemini-pro-latest": _PRO,
+    # Newer flash tiers are priced at their generation's equivalent tier. Without these
+    # entries they fall through to DEFAULT_PRICING, which is ~6x the real flash rate and
+    # would both inflate reported spend and trip the model-overuse check spuriously.
+    "gemini-2.5-flash": _FLASH,
+    "gemini-3-flash-preview": _FLASH,
+    "gemini-3.5-flash": _FLASH,
+    "gemini-3.6-flash": _FLASH,
+    "gemini-flash-latest": _FLASH,
+    "gemini-2.5-flash-lite": _FLASH_LITE,
+    "gemini-3.1-flash-lite": _FLASH_LITE,
+    "gemini-3.5-flash-lite": _FLASH_LITE,
+    "gemini-flash-lite-latest": _FLASH_LITE,
 }
 DEFAULT_PRICING = {"input": 0.0005, "output": 0.0015}
 
@@ -41,9 +62,15 @@ COMPLEX_TASK_KEYWORDS = {
     "reason step by step", "multi-step", "optimize", "diagnose", "synthesize",
     "evaluate the tradeoffs", "write code", "debug",
 }
-CHEAP_MODEL_TIER = {"gemini-2.5-flash-lite"}
-MID_MODEL_TIER = {"gemini-2.5-flash"}
-EXPENSIVE_MODEL_TIER = {"gemini-2.5-pro"}
+CHEAP_MODEL_TIER = {
+    "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+}
+MID_MODEL_TIER = {
+    "gemini-2.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.6-flash",
+    "gemini-flash-latest",
+}
+EXPENSIVE_MODEL_TIER = {"gemini-2.5-pro", "gemini-pro-latest"}
 
 # Illustrative business assumptions used by the Business Impact Scorer. These are
 # stated explicitly (per the Round 2 brief's instruction to state assumptions
