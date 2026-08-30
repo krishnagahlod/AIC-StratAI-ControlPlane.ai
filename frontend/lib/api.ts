@@ -108,6 +108,13 @@ export const api = {
     return request<PlaygroundRecommendation>(`/api/playground/recommend?${qs.toString()}`);
   },
 
+  demoStatus: () => request<{ demo_mode: boolean; pending_reviews: number }>("/api/demo/status"),
+
+  armReviewQueue: () =>
+    request<{ ok: boolean; armed: number; sla_seconds: number; message: string }>("/api/demo/arm-review-queue", {
+      method: "POST",
+    }),
+
   sendChat: (payload: {
     appKey: string;
     prompt: string;

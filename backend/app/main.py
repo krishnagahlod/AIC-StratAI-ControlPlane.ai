@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes_dashboard, routes_narrator, routes_playground, routes_review_queue
+from app.api import routes_dashboard, routes_demo, routes_narrator, routes_playground, routes_review_queue
 from app.db.models import Base
 from app.db.session import engine
 from app.proxy.router import router as proxy_router
@@ -22,6 +22,7 @@ app.include_router(routes_dashboard.router)
 app.include_router(routes_review_queue.router)
 app.include_router(routes_playground.router)
 app.include_router(routes_narrator.router)
+app.include_router(routes_demo.router)
 
 
 @app.get("/health")

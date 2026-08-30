@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_judge_model: str = "gemini-2.5-flash-lite"
     database_url: str = "sqlite:///./controlplane.db"
+    # Enables the /api/demo endpoints used to re-arm the Human Review Queue before a
+    # recording. Off by default so a deployed instance never exposes them.
+    demo_mode: bool = False
 
 
 @lru_cache

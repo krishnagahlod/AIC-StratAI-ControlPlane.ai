@@ -196,6 +196,28 @@ Open `http://localhost:3010`.
    send a **real** request through the proxy to Gemini. Watch the sync response arrive
    instantly, then the async evaluation populate a few seconds later.
 
+### Demo mode (optional)
+
+The Review Queue's SLA windows are deliberately short (30–120s) — safe defaults apply
+fast, which is the point. That makes the queue awkward to demo or record, because a
+pending item can expire mid-walkthrough.
+
+Setting `DEMO_MODE=1` in `backend/.env` enables two endpoints and a matching control in
+the sidebar:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/demo/status` | Reports whether demo mode is on |
+| `POST /api/demo/arm-review-queue` | Re-opens three recent human-review escalations — chosen across different apps and decision types — with a 10-minute SLA |
+
+It re-opens escalations that genuinely reached a human-review decision; it does not
+fabricate interactions. Off by default, and documented here rather than hidden, because
+an AI-governance tool should not ship an undisclosed way to manufacture its own state.
+
+> **Recording note:** record against a production build (`npm run build && npm run start`),
+> not `npm run dev`. The dev server renders an error-count badge in the bottom-left corner
+> whenever any console error occurs, which will otherwise appear on camera.
+
 ---
 
 ## 6. Repository structure

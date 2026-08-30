@@ -13,6 +13,7 @@ import {
   Play,
 } from "lucide-react";
 import { ConnectionDot } from "@/components/ConnectionStatus";
+import DemoControls from "@/components/DemoControls";
 
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -76,6 +77,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="px-5 py-4 border-t border-border text-[11px] text-muted-2 leading-relaxed">
+        <DemoControls />
         <ConnectionDot />
         Team StratAI · IIT Bombay
         <br />
