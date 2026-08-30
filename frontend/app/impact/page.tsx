@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic2, Lightbulb } from "lucide-react";
+import { Mic2, Lightbulb, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { Badge, Card, PageHeader, SectionLabel } from "@/components/ui";
 import AppFilter from "@/components/AppFilter";
-import type { AppSummary, ImpactBreakdownItem, Recommendation } from "@/lib/types";
+import type { AppSummary, GroundingVerdict, ImpactBreakdownItem, Recommendation } from "@/lib/types";
 
 const AUDIENCES = [
   { key: "engineer", label: "Engineer" },
@@ -24,11 +24,52 @@ const CATEGORY_LABEL: Record<string, string> = {
   operational_cost: "Operational Cost",
 };
 
+/** The narrator is an LLM feature, so it is held to the same standard as the apps we
+ *  monitor: every entity it names is checked against the data it was given, and the
+ *  result is shown rather than hidden. */
+function GroundingBadge({ verdict }: { verdict: GroundingVerdict }) {
+  const config = {
+    verified: {
+      icon: <ShieldCheck size={13} />,
+      className: "text-emerald-700 bg-emerald-50 border-emerald-200",
+      text: `Grounding verified — ${verdict.checked_terms ?? 0} named entities checked, 0 unsupported`,
+    },
+    corrected: {
+      icon: <ShieldAlert size={13} />,
+      className: "text-amber-700 bg-amber-50 border-amber-200",
+      text: `Draft rejected (${verdict.unsupported_terms.join(", ")}) — regenerated and re-verified`,
+    },
+    fallback: {
+      icon: <ShieldAlert size={13} />,
+      className: "text-amber-700 bg-amber-50 border-amber-200",
+      text: "Model output failed grounding twice — showing a deterministic report built from source data",
+    },
+    unavailable: {
+      icon: <ShieldQuestion size={13} />,
+      className: "text-muted bg-surface-2 border-border",
+      text: "Upstream LLM unavailable — showing a deterministic report built from source data",
+    },
+  }[verdict.status];
+
+  return (
+    <div className="mt-3.5 pt-3 border-t border-border/60 flex flex-wrap items-center gap-2">
+      <Badge className={`gap-1.5 ${config.className}`}>
+        {config.icon}
+        {config.text}
+      </Badge>
+      <span className="text-xs text-muted-2">
+        Deterministic entity check — no second LLM involved
+      </span>
+    </div>
+  );
+}
+
 export default function ImpactPage() {
   const [apps, setApps] = useState<AppSummary[]>([]);
   const [appId, setAppId] = useState<number | null>(null);
   const [audience, setAudience] = useState("ceo");
   const [narrative, setNarrative] = useState<string>("");
+  const [grounding, setGrounding] = useState<GroundingVerdict | null>(null);
   const [loadingNarrative, setLoadingNarrative] = useState(false);
   const [breakdown, setBreakdown] = useState<ImpactBreakdownItem[]>([]);
   const [recs, setRecs] = useState<Recommendation[]>([]);
@@ -44,9 +85,13 @@ export default function ImpactPage() {
 
   useEffect(() => {
     setLoadingNarrative(true);
+    setGrounding(null);
     api
       .getNarrative(audience, appId, 14)
-      .then((r) => setNarrative(r.narrative))
+      .then((r) => {
+        setNarrative(r.narrative);
+        setGrounding(r.grounding);
+      })
       .catch((e) => setNarrative(`Could not load narrative: ${e.message}`))
       .finally(() => setLoadingNarrative(false));
   }, [audience, appId]);
@@ -98,6 +143,7 @@ export default function ImpactPage() {
             {narrative || "Loading narrative…"}
           </motion.p>
         </AnimatePresence>
+        {grounding && !loadingNarrative && <GroundingBadge verdict={grounding} />}
       </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

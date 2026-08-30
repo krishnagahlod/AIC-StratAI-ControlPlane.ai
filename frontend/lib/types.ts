@@ -149,6 +149,21 @@ export interface PlaygroundMetrics {
   f1: number;
 }
 
+export interface GroundingVerdict {
+  status: "verified" | "corrected" | "fallback" | "unavailable";
+  passed: boolean;
+  unsupported_terms: string[];
+  checked_terms?: number;
+  attempts: number;
+  method: string;
+}
+
+export interface NarrativeResponse {
+  narrative: string;
+  grounding: GroundingVerdict;
+  cached: boolean;
+}
+
 export interface ImpactBreakdownItem {
   risk_category: string;
   total_usd: number;

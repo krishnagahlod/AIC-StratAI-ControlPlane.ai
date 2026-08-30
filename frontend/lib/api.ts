@@ -3,6 +3,7 @@ import type {
   AppSummary,
   ImpactBreakdownItem,
   InteractionSummary,
+  NarrativeResponse,
   PlaygroundMetrics,
   PlaygroundRecommendation,
   Recommendation,
@@ -65,7 +66,7 @@ export const api = {
   getNarrative: (audience: string, appId?: number | null, days = 7) => {
     const qs = new URLSearchParams({ audience, days: String(days) });
     if (appId) qs.set("app_id", String(appId));
-    return request<{ narrative: string; cached: boolean }>(`/api/narrator?${qs.toString()}`);
+    return request<NarrativeResponse>(`/api/narrator?${qs.toString()}`);
   },
 
   listReviewQueue: (status?: string) => {

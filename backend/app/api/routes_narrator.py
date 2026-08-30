@@ -12,7 +12,7 @@ from app.intelligence import executive_narrator
 router = APIRouter(prefix="/api/narrator")
 
 _CACHE_TTL_SECONDS = 90
-_cache: dict[tuple, tuple[float, str]] = {}
+_cache: dict[tuple, tuple[float, dict]] = {}
 
 
 def _collect_stats(db: Session, app_id: int | None, days: int) -> dict:
@@ -48,16 +48,27 @@ def _collect_stats(db: Session, app_id: int | None, days: int) -> dict:
         app = db.get(App, app_id)
         app_name = app.name if app else app_name
 
+    # The narrator is told to name applications, so it needs the real names. Without
+    # them it has no true nouns to reference and invents plausible ones instead —
+    # this list is queried live so it can never drift from what's actually monitored.
+    if app_id is not None:
+        monitored = [app_name]
+    else:
+        monitored = [name for (name,) in db.query(App.name).order_by(App.id).all()]
+
     return {
         "scope": app_name,
         "window_days": days,
+        "monitored_applications": ", ".join(monitored) or "none",
         "total_interactions_evaluated": total,
         "avg_trust_score": avg_trust,
         "top_flag_types": ", ".join(f"{t} x{c}" for t, c in top_flags) or "none",
         "critical_incidents": critical_count,
         "pending_human_reviews": pending_reviews,
         "pii_auto_redacted_count": pii_auto_redacted,
-        "total_estimated_business_impact_usd": round(total_impact, 2),
+        # Whole dollars: no executive report shows cents on a six-figure estimate,
+        # and the underlying figure is an estimate from stated assumptions anyway.
+        "total_estimated_business_impact_usd": round(total_impact),
         "total_ai_spend_usd": round(total_cost, 4),
     }
 
@@ -68,9 +79,10 @@ def get_narrative(audience: str = "ceo", app_id: int | None = None, days: int = 
     now = time.time()
     cached = _cache.get(cache_key)
     if cached and now - cached[0] < _CACHE_TTL_SECONDS:
-        return {"narrative": cached[1], "cached": True}
+        return {**cached[1], "cached": True}
 
     stats = _collect_stats(db, app_id, days)
-    narrative = executive_narrator.generate(audience, stats)
-    _cache[cache_key] = (now, narrative)
-    return {"narrative": narrative, "cached": False, "stats": stats}
+    result = executive_narrator.generate(audience, stats)
+    payload = {"narrative": result["narrative"], "grounding": result["grounding"], "stats": stats}
+    _cache[cache_key] = (now, payload)
+    return {**payload, "cached": False}
