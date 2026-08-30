@@ -44,7 +44,10 @@ def _resolve_app(db: Session, metadata: RequestMetadata | None) -> App:
     return fallback
 
 
-def _blocked_response(request_id: str, model: str, reason: str) -> dict:
+def _blocked_response(request_id: str, model: str, reason: str, interaction: Interaction) -> dict:
+    # A blocked request still carries the `controlplane` envelope. Callers use it to
+    # correlate the block with its trace, and omitting it made a blocked prompt
+    # indistinguishable from a transport failure on the client side.
     return {
         "id": request_id,
         "object": "chat.completion",
@@ -57,6 +60,14 @@ def _blocked_response(request_id: str, model: str, reason: str) -> dict:
             }
         ],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        "controlplane": {
+            "interaction_id": interaction.id,
+            "sync_action": interaction.sync_action,
+            "sync_flags": interaction.sync_flags,
+            "latency_ms": 0.0,
+            "model_called": False,
+            "block_reason": reason,
+        },
     }
 
 
@@ -96,7 +107,11 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
         )
         db.add(interaction)
         db.commit()
-        return _blocked_response(request_id, model, "daily AI budget for this app has been exceeded")
+        db.refresh(interaction)
+        background_tasks.add_task(evaluate_interaction, interaction.id)
+        return _blocked_response(
+            request_id, model, "daily AI budget for this app has been exceeded", interaction
+        )
 
     prompt_check = sync_checks.check_prompt(original_prompt)
     if prompt_check.action == "blocked":
@@ -115,7 +130,13 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
         )
         db.add(interaction)
         db.commit()
-        return _blocked_response(request_id, model, "prompt matched a blocked jailbreak/injection pattern")
+        db.refresh(interaction)
+        # Blocked interactions are evaluated too: the block itself is a governance event
+        # that belongs in the trace, the scores, and the audit trail.
+        background_tasks.add_task(evaluate_interaction, interaction.id)
+        return _blocked_response(
+            request_id, model, "prompt matched a blocked jailbreak/injection pattern", interaction
+        )
 
     sanitized_messages = [m.model_dump() for m in user_messages[:-1]] + [{"role": "user", "content": prompt_check.text}]
 
@@ -169,5 +190,8 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
             "sync_action": interaction.sync_action,
             "sync_flags": interaction.sync_flags,
             "latency_ms": round(llm_result.latency_ms, 1),
+            "model_called": True,
+            "prompt_check_action": prompt_check.action,
+            "response_check_action": response_check.action,
         },
     }

@@ -123,7 +123,14 @@ export const api = {
   }) =>
     request<{
       choices: Array<{ message: { content: string } }>;
-      controlplane: { interaction_id: number; sync_action: string; sync_flags: unknown[]; latency_ms: number };
+      controlplane: {
+        interaction_id: number;
+        sync_action: string;
+        sync_flags: unknown[];
+        latency_ms: number;
+        model_called: boolean;
+        block_reason?: string;
+      };
       usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
     }>("/v1/chat/completions", {
       method: "POST",

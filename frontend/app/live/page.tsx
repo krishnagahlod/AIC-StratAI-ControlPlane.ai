@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Eraser, Filter, ShieldX } from "lucide-react";
+import { Filter } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { formatRelativeTime, formatUsd, riskLevelColor } from "@/lib/format";
-import { Badge, Card, FlagList, PageHeader, TrustRing } from "@/components/ui";
+import { Badge, Card, FlagList, InterventionBanner, PageHeader, TrustRing } from "@/components/ui";
 import AppFilter from "@/components/AppFilter";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
 
@@ -17,33 +17,6 @@ function SyncActionBadge({ action }: { action: string }) {
     blocked: "text-rose-600 bg-rose-50 border-rose-200",
   };
   return <Badge className={styles[action] ?? styles.allowed}>{action}</Badge>;
-}
-
-/** A blocked or redacted interaction scores high because the control worked. Leading with
- *  the numeric ring makes a stopped attack look "pretty trustworthy", so the outcome is
- *  stated in words first and the score is demoted to supporting evidence. */
-function InterventionBanner({ action }: { action: string }) {
-  if (action !== "blocked" && action !== "redacted") return null;
-  const blocked = action === "blocked";
-  return (
-    <div
-      className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 ${
-        blocked ? "bg-rose-50 border-rose-200 text-rose-800" : "bg-amber-50 border-amber-200 text-amber-800"
-      }`}
-    >
-      {blocked ? <ShieldX size={16} className="mt-0.5 shrink-0" /> : <Eraser size={16} className="mt-0.5 shrink-0" />}
-      <div>
-        <div className="text-sm font-semibold tracking-tight">
-          {blocked ? "Threat neutralised — request never reached the model" : "PII auto-redacted before delivery"}
-        </div>
-        <div className="text-xs mt-0.5 opacity-90">
-          {blocked
-            ? "TrustScore stays high because the control worked. The score measures the platform's response, not the attacker's intent."
-            : "The raw model output contained sensitive data. It was rewritten in the sync path before the user saw it — the raw version is shown below for audit."}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function LiveFeedPage() {

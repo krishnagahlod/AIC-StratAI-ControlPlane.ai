@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
-import { Badge, Button, Card, FlagList, PageHeader, TrustRing } from "@/components/ui";
+import { Badge, Button, Card, FlagList, InterventionBanner, PageHeader, TrustReadout } from "@/components/ui";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
+import PipelineFlow, { type SyncOutcome } from "@/components/PipelineFlow";
 
 const PRESETS = [
   {
@@ -41,6 +42,7 @@ export default function TryItLivePage() {
   const [ragContext, setRagContext] = useState(PRESETS[0].ragContext);
   const [sending, setSending] = useState(false);
   const [immediate, setImmediate] = useState<{ content: string; syncAction: string; syncFlags: unknown[] } | null>(null);
+  const [sync, setSync] = useState<SyncOutcome | null>(null);
   const [detail, setDetail] = useState<InteractionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evalState, setEvalState] = useState<"idle" | "running" | "done" | "failed" | "timeout">("idle");
@@ -60,6 +62,7 @@ export default function TryItLivePage() {
     setSending(true);
     setError(null);
     setImmediate(null);
+    setSync(null);
     setDetail(null);
     setEvalState("running");
     if (pollRef.current) clearInterval(pollRef.current);
@@ -70,6 +73,12 @@ export default function TryItLivePage() {
         content: res.choices[0].message.content,
         syncAction: res.controlplane.sync_action,
         syncFlags: res.controlplane.sync_flags,
+      });
+      setSync({
+        syncAction: res.controlplane.sync_action,
+        latencyMs: res.controlplane.latency_ms,
+        modelCalled: res.controlplane.model_called,
+        flagCount: res.controlplane.sync_flags.length,
       });
       const id = res.controlplane.interaction_id;
 
@@ -117,6 +126,10 @@ export default function TryItLivePage() {
         title="Try It Live"
         description="Send a real request through the ControlPlane.ai proxy to a real LLM and watch the full pipeline run — sync checks first, then async evaluation."
       />
+
+      <Card className="mb-6">
+        <PipelineFlow sending={sending} sync={sync} detail={detail} evalState={evalState} />
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card>
@@ -239,13 +252,12 @@ export default function TryItLivePage() {
                   )}
                   {detail?.evaluation && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <TrustRing score={detail.evaluation.trust_score} />
-                        <div>
-                          <div className="text-sm font-medium">TrustScore {detail.evaluation.trust_score}</div>
-                          <div className="text-xs text-muted-2 capitalize">{detail.evaluation.risk_level} risk</div>
-                        </div>
-                      </div>
+                      <InterventionBanner action={immediate.syncAction} />
+                      <TrustReadout
+                        score={detail.evaluation.trust_score}
+                        riskLevel={detail.evaluation.risk_level}
+                        action={immediate.syncAction}
+                      />
                       <FlagList flags={detail.evaluation.flags} />
                       {detail.business_impact && detail.business_impact.risk_category !== "none" && (
                         <div className="text-sm bg-surface-2 rounded-xl p-3">{detail.business_impact.narrative}</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, animate } from "framer-motion";
+import { Eraser, ShieldX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { flagLabel, severityColor, trustScoreColor } from "@/lib/format";
 import type { Flag } from "@/lib/types";
@@ -150,6 +151,57 @@ export function TrustRing({ score, size = 64 }: { score: number; size?: number }
       </svg>
       <div className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${colorClass}`}>
         {Math.round(score)}
+      </div>
+    </div>
+  );
+}
+
+/** A blocked or redacted interaction scores high because the control worked. Leading with
+ *  the numeric ring makes a stopped attack look "pretty trustworthy", so the outcome is
+ *  stated in words first and the score is demoted to supporting evidence. Shared by the
+ *  Live Feed trace panel and Try It Live so the framing is identical in both places. */
+export function InterventionBanner({ action }: { action: string }) {
+  if (action !== "blocked" && action !== "redacted") return null;
+  const blocked = action === "blocked";
+  return (
+    <div
+      className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 ${
+        blocked ? "bg-rose-50 border-rose-200 text-rose-800" : "bg-amber-50 border-amber-200 text-amber-800"
+      }`}
+    >
+      {blocked ? <ShieldX size={16} className="mt-0.5 shrink-0" /> : <Eraser size={16} className="mt-0.5 shrink-0" />}
+      <div>
+        <div className="text-sm font-semibold tracking-tight">
+          {blocked ? "Threat neutralised — request never reached the model" : "PII auto-redacted before delivery"}
+        </div>
+        <div className="text-xs mt-0.5 opacity-90">
+          {blocked
+            ? "TrustScore stays high because the control worked. The score measures the platform's response, not the attacker's intent."
+            : "The raw model output contained sensitive data. It was rewritten in the sync path before the user saw it — the raw version is kept for audit."}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** TrustScore presentation that steps aside when an intervention already tells the story. */
+export function TrustReadout({ score, riskLevel, action }: { score: number; riskLevel: string; action: string }) {
+  if (action === "allowed") {
+    return (
+      <div className="flex items-center gap-4">
+        <TrustRing score={score} />
+        <div>
+          <div className="text-sm font-medium">TrustScore {score}</div>
+          <div className="text-xs text-muted-2 capitalize">{riskLevel} risk</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wide text-muted-2">TrustScore</div>
+      <div className="text-lg font-semibold text-muted">
+        {Math.round(score)} <span className="text-xs font-normal capitalize">· {riskLevel} risk</span>
       </div>
     </div>
   );
