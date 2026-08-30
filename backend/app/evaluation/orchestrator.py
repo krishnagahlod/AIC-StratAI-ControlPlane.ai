@@ -17,7 +17,13 @@ def _run_evaluation_sync(interaction_id: int) -> None:
             return
         app = db.get(App, interaction.app_id)
 
-        perf_result = performance_analyzer.analyze(interaction.prompt, interaction.raw_response, interaction.rag_context)
+        perf_result = performance_analyzer.analyze(
+            interaction.prompt,
+            interaction.raw_response,
+            interaction.rag_context,
+            latency_ms=interaction.latency_ms,
+            latency_budget_ms=app.latency_budget_ms,
+        )
         cost_result = cost_analyzer.analyze(
             app.id, interaction.prompt, interaction.model, interaction.input_tokens, interaction.output_tokens, app.daily_budget_usd
         )

@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { Badge, Button, Card, FlagList, InterventionBanner, PageHeader, TrustReadout } from "@/components/ui";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
 import PipelineFlow, { type SyncOutcome } from "@/components/PipelineFlow";
+import ModelOutput from "@/components/ModelOutput";
 
 const PRESETS = [
   {
@@ -225,7 +226,9 @@ export default function TryItLivePage() {
                     </Badge>
                     <span className="text-xs text-muted-2">(&lt;10ms sync path)</span>
                   </div>
-                  <div className="text-sm bg-surface-2 rounded-xl p-3 whitespace-pre-wrap">{immediate.content}</div>
+                  <div className="text-sm bg-surface-2 rounded-xl p-3 max-h-80 overflow-y-auto">
+                    <ModelOutput text={immediate.content} />
+                  </div>
                 </div>
 
                 <div className="border-t border-border pt-4">

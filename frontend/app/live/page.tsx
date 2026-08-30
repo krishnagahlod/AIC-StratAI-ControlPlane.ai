@@ -9,6 +9,7 @@ import { usePolling } from "@/lib/hooks";
 import { formatRelativeTime, formatUsd, riskLevelColor } from "@/lib/format";
 import { Badge, Card, FlagList, InterventionBanner, PageHeader, TrustRing } from "@/components/ui";
 import AppFilter from "@/components/AppFilter";
+import ModelOutput from "@/components/ModelOutput";
 import type { AppSummary, InteractionSummary } from "@/lib/types";
 
 function SyncActionBadge({ action }: { action: string }) {
@@ -169,14 +170,16 @@ export default function LiveFeedPage() {
                 <div className="flex items-center gap-2 text-xs uppercase text-muted-2 mb-1.5">
                   Delivered Response <SyncActionBadge action={detail.sync_action} />
                 </div>
-                <div className="text-sm bg-surface-2 rounded-xl p-3 whitespace-pre-wrap">{detail.response}</div>
+                <div className="text-sm bg-surface-2 rounded-xl p-3 max-h-72 overflow-y-auto">
+                  <ModelOutput text={detail.response} />
+                </div>
               </div>
 
               {detail.raw_response && detail.raw_response !== detail.response && (
                 <div>
                   <div className="text-xs uppercase text-muted-2 mb-1.5">Raw Model Output (pre-redaction, internal only)</div>
-                  <div className="text-sm bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 whitespace-pre-wrap">
-                    {detail.raw_response}
+                  <div className="text-sm bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 max-h-60 overflow-y-auto">
+                    <ModelOutput text={detail.raw_response} />
                   </div>
                 </div>
               )}

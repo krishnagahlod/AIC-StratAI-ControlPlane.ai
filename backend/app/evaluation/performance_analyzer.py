@@ -64,12 +64,43 @@ def _deterministic_numeric_check(response: str, rag_context: str | None) -> dict
     }
 
 
-def analyze(prompt: str, response: str, rag_context: str | None) -> dict:
+def _latency_check(latency_ms: float | None, budget_ms: int | None) -> dict | None:
+    """Every app declares a latency budget; this is what makes that declaration mean something.
+
+    Deterministic on purpose — a stopwatch comparison should never be delegated to a model.
+    """
+    if not latency_ms or not budget_ms or latency_ms <= budget_ms:
+        return None
+    overrun = latency_ms / budget_ms
+    return {
+        "type": "latency_budget_exceeded",
+        "dimension": "performance",
+        "severity": "high" if overrun >= 2 else "medium",
+        "method": "deterministic",
+        "detail": (
+            f"Response took {latency_ms:.0f}ms against this application's "
+            f"{budget_ms}ms budget ({overrun:.1f}x over)."
+        ),
+        "evidence": {"latency_ms": round(latency_ms), "budget_ms": budget_ms, "overrun_x": round(overrun, 2)},
+    }
+
+
+def analyze(
+    prompt: str,
+    response: str,
+    rag_context: str | None,
+    latency_ms: float | None = None,
+    latency_budget_ms: int | None = None,
+) -> dict:
     flags: list[dict] = []
 
     deterministic_flag = _deterministic_numeric_check(response, rag_context)
     if deterministic_flag:
         flags.append(deterministic_flag)
+
+    latency_flag = _latency_check(latency_ms, latency_budget_ms)
+    if latency_flag:
+        flags.append(latency_flag)
 
     judge = generate_judge_json(
         JUDGE_PROMPT.format(prompt=prompt, context=rag_context or "(none provided)", response=response)

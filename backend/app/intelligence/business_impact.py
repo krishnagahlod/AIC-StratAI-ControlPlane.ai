@@ -13,6 +13,9 @@ FLAG_TO_CATEGORY = {
     "bias": "reputation",
     "toxicity": "customer_trust",
     "prompt_injection": "security",
+    # A slow answer is a customer-experience problem, not a cost one — without this it fell
+    # through to the operational_cost default and got narrated as "a cost-efficiency flag".
+    "latency_budget_exceeded": "customer_trust",
     "model_overuse": "operational_cost",
     "redundant_call": "operational_cost",
     "agent_loop_suspected": "operational_cost",
@@ -87,11 +90,24 @@ def compute(app, flags: list[dict], cost_flags_evidence: dict | None = None) -> 
     elif category == "customer_trust":
         affected_users = round(daily)
         impact = affected_users * BA["churn_probability_per_toxicity_incident"] * BA["customer_lifetime_value_usd"]
-        narrative = (
-            f"{app.name} returned a toxic/harmful response. Extrapolated across its daily traffic "
-            f"(~{affected_users:,} interactions), the expected customer-lifetime-value impact from "
-            f"elevated churn risk is approximately ${impact:,.0f}."
-        )
+        if lead_flag["type"] == "latency_budget_exceeded":
+            # Same churn mechanism, different cause — a response the user waited too long for
+            # erodes trust the way a rude one does, so the maths holds but the wording must not
+            # claim the response was toxic.
+            over = (lead_flag.get("evidence") or {}).get("overrun_x")
+            over_text = f" ({over}x its budget)" if over else ""
+            narrative = (
+                f"{app.name} answered slower than its configured latency budget{over_text}. "
+                f"Extrapolated across its daily traffic (~{affected_users:,} interactions), the "
+                f"expected customer-lifetime-value impact from abandonment and elevated churn risk "
+                f"is approximately ${impact:,.0f}."
+            )
+        else:
+            narrative = (
+                f"{app.name} returned a toxic/harmful response. Extrapolated across its daily traffic "
+                f"(~{affected_users:,} interactions), the expected customer-lifetime-value impact from "
+                f"elevated churn risk is approximately ${impact:,.0f}."
+            )
     elif category == "security":
         affected_users = 0
         impact = BA["remediation_cost_per_compliance_incident_usd"] * 2

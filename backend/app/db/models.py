@@ -19,6 +19,10 @@ class App(Base):
     key: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(128))
     app_type: Mapped[str] = mapped_column(String(32))  # customer_facing | internal | decision_support
+    # The operating instruction the enterprise gives this application. Part of the
+    # per-app configuration, not a global default: a support bot and an underwriting
+    # assistant should not behave the same way.
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     latency_budget_ms: Mapped[int] = mapped_column(Integer, default=3000)
     risk_tolerance: Mapped[str] = mapped_column(String(16), default="medium")
     weight_performance: Mapped[float] = mapped_column(Float, default=0.4)

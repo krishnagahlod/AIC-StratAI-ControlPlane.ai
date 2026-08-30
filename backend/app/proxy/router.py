@@ -131,7 +131,12 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
 
     user_messages = [m for m in payload.messages if m.role != "system"]
     system_messages = [m.content for m in payload.messages if m.role == "system"]
-    system_prompt = "\n".join(system_messages) or None
+    # The application's own configured operating instruction is the base. A caller-supplied
+    # system message layers on top of it rather than replacing it — an app's guardrails
+    # should not be removable by the request that the guardrails exist to constrain.
+    layers = [app.system_prompt] if app.system_prompt else []
+    layers.extend(system_messages)
+    system_prompt = "\n\n".join(layers) or None
     original_prompt = user_messages[-1].content if user_messages else ""
 
     if payload.rag_context:

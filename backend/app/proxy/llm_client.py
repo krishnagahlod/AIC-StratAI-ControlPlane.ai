@@ -57,7 +57,17 @@ def generate_chat(
         response = _client.models.generate_content(
             model=model,
             contents=contents,
-            config=types.GenerateContentConfig(system_instruction=final_system) if final_system else None,
+            config=types.GenerateContentConfig(
+                system_instruction=final_system,
+                # 2.5-series models reason before answering by default, which added ~10s to
+                # a simple support answer. These are short, grounded replies where extended
+                # reasoning buys nothing and costs both latency budget and output tokens.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                # Backstop only — brevity is enforced by each app's system prompt. This is
+                # set generously so it never truncates a well-behaved answer mid-sentence.
+                max_output_tokens=800,
+                temperature=0.4,
+            ),
         )
     except Exception as exc:  # noqa: BLE001 - upstream provider errors are surfaced uniformly
         logger.warning("Gemini generate_chat call failed: %s", exc)

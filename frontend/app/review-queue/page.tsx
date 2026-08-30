@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
 import { decisionLabel, formatRelativeTime } from "@/lib/format";
 import { Badge, Button, Card, FlagList, PageHeader, SectionLabel } from "@/components/ui";
+import ModelOutput from "@/components/ModelOutput";
 import type { ReviewQueueItem } from "@/lib/types";
 
 type QueueItemWithDeadline = ReviewQueueItem & { deadlineMs: number | null };
@@ -116,7 +117,9 @@ export default function ReviewQueuePage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm bg-surface-2 rounded-xl p-3 mb-3 whitespace-pre-wrap">{item.response}</div>
+                  <div className="text-sm bg-surface-2 rounded-xl p-3 mb-3 max-h-56 overflow-y-auto">
+                    <ModelOutput text={item.response ?? ""} />
+                  </div>
                   <div className="mb-3">
                     <FlagList flags={item.flags} />
                   </div>
