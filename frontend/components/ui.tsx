@@ -16,8 +16,8 @@ export function Card({
 }) {
   return (
     <div
-      className={`relative bg-surface/90 backdrop-blur-sm border border-border rounded-2xl p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset] transition-all duration-200 ${
-        interactive ? "hover:border-border-strong hover:bg-surface-2/90 hover:-translate-y-0.5 cursor-pointer" : ""
+      className={`relative bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_2px_rgba(10,0,17,0.04),0_1px_0_rgba(10,0,17,0.02)] transition-all duration-200 ${
+        interactive ? "hover:border-border-strong hover:shadow-[0_4px_16px_-4px_rgba(10,0,17,0.10)] hover:-translate-y-0.5 cursor-pointer" : ""
       } ${className}`}
     >
       {children}
@@ -67,12 +67,11 @@ export function StatCard({
 }) {
   return (
     <Card className="overflow-hidden">
-      <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-accent/5 blur-xl" aria-hidden="true" />
       <div className="flex items-start justify-between mb-2">
-        <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
-        {icon && <div className="text-muted-2">{icon}</div>}
+        <div className="text-xs uppercase tracking-wide text-muted-2 font-medium">{label}</div>
+        {icon && <div className="text-accent">{icon}</div>}
       </div>
-      <div className={`font-display text-3xl font-semibold tracking-tight ${accentClass ?? ""}`}>
+      <div className={`text-[28px] font-bold tracking-tight ${accentClass ?? "text-foreground"}`}>
         {numericValue !== undefined ? (
           <>
             {prefix}
@@ -101,9 +100,9 @@ export function PageHeader({
     <div className="mb-7">
       <div className="flex items-center gap-2.5">
         {icon && <span className="text-accent">{icon}</span>}
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-[26px] font-bold tracking-tight text-foreground">{title}</h1>
       </div>
-      {description && <p className="text-sm text-muted mt-1.5 max-w-2xl">{description}</p>}
+      {description && <p className="text-[15px] text-muted mt-1.5 max-w-2xl leading-relaxed">{description}</p>}
     </div>
   );
 }
@@ -132,7 +131,7 @@ export function TrustRing({ score, size = 64 }: { score: number; size?: number }
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         />
       </svg>
-      <div className={`absolute inset-0 flex items-center justify-center text-sm font-semibold font-display ${colorClass}`}>
+      <div className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${colorClass}`}>
         {Math.round(score)}
       </div>
     </div>
@@ -143,10 +142,10 @@ export function FlagChip({ flag }: { flag: Flag }) {
   return (
     <span
       title={flag.detail}
-      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${severityColor(flag.severity)}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${severityColor(flag.severity)}`}
     >
       {flagLabel(flag.type)}
-      <span className="opacity-50">·</span>
+      <span className="opacity-40">·</span>
       <span className="opacity-70">{flag.method === "llm_judge" ? "LLM judge" : "rule"}</span>
     </span>
   );
@@ -187,11 +186,11 @@ export function Button({
   type?: "button" | "submit";
 }) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 px-4 h-10 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100";
+    "inline-flex items-center justify-center gap-1.5 px-4 h-10 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100";
   const styles: Record<string, string> = {
-    primary: "bg-accent text-white shadow-[0_1px_0_0_rgba(255,255,255,0.15)_inset,0_4px_16px_-4px_var(--accent-soft)] hover:brightness-110",
-    secondary: "bg-surface-2 text-foreground border border-border hover:bg-surface-3 hover:border-border-strong",
-    danger: "bg-rose-500/10 text-rose-300 border border-rose-500/25 hover:bg-rose-500/20",
+    primary: "bg-accent text-white shadow-[0_1px_2px_rgba(161,0,255,0.15),0_4px_14px_-4px_rgba(161,0,255,0.45)] hover:bg-accent-deep",
+    secondary: "bg-white text-foreground border border-border hover:bg-surface-2 hover:border-border-strong",
+    danger: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
     ghost: "text-muted hover:text-foreground hover:bg-surface-2",
   };
   return (
@@ -211,7 +210,7 @@ export function SectionLabel({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-2 text-sm font-medium ${className}`}>
+    <div className={`flex items-center gap-2 text-[15px] font-semibold text-foreground ${className}`}>
       {icon && <span className="text-accent">{icon}</span>}
       {children}
     </div>

@@ -122,6 +122,22 @@ the tradeoff:
 - **Frontend**: Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Recharts.
 - **No Docker requirement** — plain `uvicorn` / `npm run dev`.
 
+### Design system
+
+The UI follows an Accenture-style enterprise visual language: light theme, the brand purple
+(`#A100FF`, with `#7500C0` as the text/hover-safe deep variant) as the sole accent, and Public
+Sans as the UI typeface — the closest free/open alternative to Graphik (a paid commercial font)
+available on Google Fonts. The exact palette was extracted from a real Accenture-branded deck
+(`ppt/theme/*.xml` color and font tables) rather than guessed.
+
+Chart colors are not arbitrary: the categorical series palette (TrustScore/Cost/Performance/
+Responsibility) was built and validated against Anthropic's `dataviz` skill's accessibility
+checker (`validate_palette.js`) for CVD-safe adjacent-pair separation and contrast against a
+white surface, and status/severity colors (the flag chips) are kept deliberately distinct from
+the chart series palette so a status color never impersonates a series. The Trends page's
+volume/cost chart was also split into two single-axis charts rather than one dual-axis chart,
+per that skill's #1 anti-pattern rule (never two y-scales on one chart).
+
 ---
 
 ## 5. Running it

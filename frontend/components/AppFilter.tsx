@@ -15,7 +15,7 @@ export default function AppFilter({
     <select
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-      className="bg-surface-2 border border-border rounded-xl px-3.5 h-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 shrink-0"
+      className="bg-white border border-border rounded-xl px-3.5 h-10 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 shrink-0"
     >
       <option value="">All Apps</option>
       {apps.map((app) => (

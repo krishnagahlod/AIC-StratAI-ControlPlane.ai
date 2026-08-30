@@ -109,7 +109,7 @@ export default function ImpactPage() {
               <div key={b.risk_category}>
                 <div className="flex flex-wrap justify-between gap-x-3 text-sm mb-1">
                   <span>{CATEGORY_LABEL[b.risk_category] ?? b.risk_category}</span>
-                  <span className="font-medium font-display">{formatUsd(b.total_usd)}</span>
+                  <span className="font-medium">{formatUsd(b.total_usd)}</span>
                 </div>
                 <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
                   <motion.div
@@ -133,7 +133,7 @@ export default function ImpactPage() {
               <div key={r.id} className="border-b border-border/60 last:border-0 pb-3 last:pb-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-sm font-medium">{r.issue}</div>
-                  <Badge className={r.priority === 1 ? "text-rose-400 bg-rose-400/10 border-rose-400/30" : "text-muted bg-surface-2 border-border"}>
+                  <Badge className={r.priority === 1 ? "text-rose-600 bg-rose-50 border-rose-200" : "text-muted bg-surface-2 border-border"}>
                     P{r.priority}
                   </Badge>
                 </div>
@@ -144,7 +144,7 @@ export default function ImpactPage() {
                   <span className="text-foreground/80">Action:</span> {r.action}
                 </div>
                 <div className="flex items-center gap-3 mt-1.5 text-xs">
-                  <span className="text-emerald-400">{formatUsd(r.estimated_value_usd)} value</span>
+                  <span className="text-emerald-600">{formatUsd(r.estimated_value_usd)} value</span>
                   <span className="text-muted-2">{Math.round(r.confidence * 100)}% confidence</span>
                   <span className="text-muted-2">{r.method === "llm_generated" ? "LLM-proposed" : "rule-based"}</span>
                 </div>

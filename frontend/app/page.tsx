@@ -54,7 +54,7 @@ export default function OverviewPage() {
           label="Business Impact at Risk"
           numericValue={summary?.total_business_impact_usd ?? 0}
           prefix="$"
-          accentClass="text-rose-400"
+          accentClass="text-rose-600"
           sub="Estimated, illustrative assumptions"
         />
         <StatCard
@@ -65,13 +65,13 @@ export default function OverviewPage() {
         <StatCard
           label="Pending Human Reviews"
           numericValue={summary?.pending_human_reviews ?? 0}
-          accentClass="text-amber-400"
+          accentClass="text-amber-700"
           sub="Awaiting SLA-timed decision"
         />
         <StatCard
           label="Critical Incidents"
           numericValue={summary?.critical_incidents ?? 0}
-          accentClass="text-rose-400"
+          accentClass="text-rose-600"
           sub="TrustScore < 30"
         />
       </div>
@@ -85,13 +85,13 @@ export default function OverviewPage() {
                 <XAxis dataKey="day" stroke="var(--muted)" fontSize={11} tickLine={false} />
                 <YAxis domain={[0, 100]} stroke="var(--muted)" fontSize={11} tickLine={false} width={30} />
                 <Tooltip
-                  contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: "#ffffff", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, boxShadow: "0 4px 16px -4px rgba(10,0,17,0.12)" }}
                 />
                 <Line
                   isAnimationActive={false}
                   type="monotone"
                   dataKey="avg_trust_score"
-                  stroke="var(--accent)"
+                  stroke="var(--series-1)"
                   strokeWidth={2.5}
                   dot={false}
                   name="TrustScore"
@@ -132,7 +132,7 @@ export default function OverviewPage() {
               <motion.div key={a.id} variants={itemVariants} className="flex items-start gap-2 text-sm">
                 <span
                   className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
-                    a.severity === "critical" ? "bg-rose-400 pulse-dot text-rose-400" : a.severity === "medium" ? "bg-amber-400" : "bg-slate-400"
+                    a.severity === "critical" ? "bg-rose-500 pulse-dot text-rose-600" : a.severity === "medium" ? "bg-amber-500" : "bg-slate-400"
                   }`}
                 />
                 <div className="flex-1">
@@ -160,7 +160,7 @@ export default function OverviewPage() {
               <motion.div key={r.id} variants={itemVariants} className="text-sm">
                 <div className="font-medium">{r.issue}</div>
                 <div className="text-xs text-muted-2">{r.action}</div>
-                <div className="text-xs text-emerald-400 mt-0.5">{formatUsd(r.estimated_value_usd)} potential value</div>
+                <div className="text-xs text-emerald-600 mt-0.5">{formatUsd(r.estimated_value_usd)} potential value</div>
               </motion.div>
             ))}
           </motion.div>

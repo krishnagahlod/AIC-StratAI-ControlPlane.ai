@@ -43,7 +43,7 @@ export default function PlaygroundPage() {
       <Card className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium">
-            Block if TrustScore &lt; <span className="font-display text-accent">{threshold}</span>
+            Block if TrustScore &lt; <span className="text-accent">{threshold}</span>
           </label>
           {recommendation && (
             <button
@@ -74,7 +74,7 @@ export default function PlaygroundPage() {
             numericValue={metrics.false_positive_rate * 100}
             decimals={1}
             suffix="%"
-            accentClass={metrics.false_positive_rate > 0.3 ? "text-rose-400" : "text-emerald-400"}
+            accentClass={metrics.false_positive_rate > 0.3 ? "text-rose-600" : "text-emerald-600"}
             sub="Fine responses incorrectly blocked"
           />
           <StatCard
@@ -82,7 +82,7 @@ export default function PlaygroundPage() {
             numericValue={metrics.recall * 100}
             decimals={1}
             suffix="%"
-            accentClass={metrics.recall < 0.5 ? "text-rose-400" : "text-emerald-400"}
+            accentClass={metrics.recall < 0.5 ? "text-rose-600" : "text-emerald-600"}
             sub="Real problems actually caught"
           />
           <StatCard label="F1 Score" numericValue={metrics.f1} decimals={3} />
@@ -93,24 +93,24 @@ export default function PlaygroundPage() {
         <Card className="mb-6">
           <SectionLabel>Confusion Matrix at threshold {threshold}</SectionLabel>
           <div className="grid grid-cols-2 gap-3 max-w-md">
-            <div className="bg-emerald-400/10 border border-emerald-400/30 rounded-xl p-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
               <div className="text-xs text-muted-2">True Positives</div>
-              <div className="text-xl font-semibold font-display text-emerald-400">{metrics.true_positives}</div>
+              <div className="text-xl font-semibold text-emerald-600">{metrics.true_positives}</div>
               <div className="text-xs text-muted-2">correctly blocked</div>
             </div>
-            <div className="bg-rose-400/10 border border-rose-400/30 rounded-xl p-3">
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
               <div className="text-xs text-muted-2">False Positives</div>
-              <div className="text-xl font-semibold font-display text-rose-400">{metrics.false_positives}</div>
+              <div className="text-xl font-semibold text-rose-600">{metrics.false_positives}</div>
               <div className="text-xs text-muted-2">fine responses blocked</div>
             </div>
-            <div className="bg-amber-400/10 border border-amber-400/30 rounded-xl p-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
               <div className="text-xs text-muted-2">False Negatives</div>
-              <div className="text-xl font-semibold font-display text-amber-400">{metrics.false_negatives}</div>
+              <div className="text-xl font-semibold text-amber-700">{metrics.false_negatives}</div>
               <div className="text-xs text-muted-2">real problems missed</div>
             </div>
             <div className="bg-surface-2 border border-border rounded-xl p-3">
               <div className="text-xs text-muted-2">True Negatives</div>
-              <div className="text-xl font-semibold font-display">{metrics.true_negatives}</div>
+              <div className="text-xl font-semibold">{metrics.true_negatives}</div>
               <div className="text-xs text-muted-2">correctly allowed</div>
             </div>
           </div>
@@ -126,11 +126,11 @@ export default function PlaygroundPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="threshold" stroke="var(--muted)" fontSize={11} />
                 <YAxis domain={[0, 1]} stroke="var(--muted)" fontSize={11} width={30} />
-                <Tooltip contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, boxShadow: "0 4px 16px -4px rgba(10,0,17,0.12)" }} />
                 <ReferenceLine x={threshold} stroke="var(--accent)" strokeDasharray="4 4" />
-                <Line isAnimationActive={false} type="monotone" dataKey="f1" name="F1" stroke="#34d399" strokeWidth={2} dot={false} />
-                <Line isAnimationActive={false} type="monotone" dataKey="false_positive_rate" name="FPR" stroke="#fb7185" strokeWidth={1.5} dot={false} />
-                <Line isAnimationActive={false} type="monotone" dataKey="recall" name="Recall" stroke="#38bdf8" strokeWidth={1.5} dot={false} />
+                <Line isAnimationActive={false} type="monotone" dataKey="f1" name="F1" stroke="var(--series-1)" strokeWidth={2} dot={false} />
+                <Line isAnimationActive={false} type="monotone" dataKey="false_positive_rate" name="FPR" stroke="var(--series-4)" strokeWidth={1.5} dot={false} />
+                <Line isAnimationActive={false} type="monotone" dataKey="recall" name="Recall" stroke="var(--series-3)" strokeWidth={1.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

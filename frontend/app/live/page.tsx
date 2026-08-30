@@ -11,9 +11,9 @@ import type { AppSummary, InteractionSummary } from "@/lib/types";
 
 function SyncActionBadge({ action }: { action: string }) {
   const styles: Record<string, string> = {
-    allowed: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
-    redacted: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-    blocked: "text-rose-400 bg-rose-400/10 border-rose-400/30",
+    allowed: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    redacted: "text-amber-700 bg-amber-50 border-amber-200",
+    blocked: "text-rose-600 bg-rose-50 border-rose-200",
   };
   return <Badge className={styles[action] ?? styles.allowed}>{action}</Badge>;
 }
@@ -71,7 +71,7 @@ export default function LiveFeedPage() {
                     <div className="text-sm truncate font-medium">{i.prompt}</div>
                   </div>
                   {i.evaluation && (
-                    <span className={`shrink-0 text-sm font-semibold font-display ${riskLevelColor(i.evaluation.risk_level).split(" ")[0]}`}>
+                    <span className={`shrink-0 text-sm font-semibold ${riskLevelColor(i.evaluation.risk_level).split(" ")[0]}`}>
                       {Math.round(i.evaluation.trust_score)}
                     </span>
                   )}
@@ -138,15 +138,15 @@ export default function LiveFeedPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-surface-2 rounded-xl p-3">
                     <div className="text-xs text-muted-2">Performance</div>
-                    <div className="text-lg font-semibold font-display">{detail.evaluation.performance_score}</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.performance_score}</div>
                   </div>
                   <div className="bg-surface-2 rounded-xl p-3">
                     <div className="text-xs text-muted-2">Cost</div>
-                    <div className="text-lg font-semibold font-display">{detail.evaluation.cost_score}</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.cost_score}</div>
                   </div>
                   <div className="bg-surface-2 rounded-xl p-3">
                     <div className="text-xs text-muted-2">Responsibility</div>
-                    <div className="text-lg font-semibold font-display">{detail.evaluation.responsibility_score}</div>
+                    <div className="text-lg font-semibold">{detail.evaluation.responsibility_score}</div>
                   </div>
                 </div>
               )}
@@ -162,7 +162,7 @@ export default function LiveFeedPage() {
                 <div>
                   <div className="text-xs uppercase text-muted-2 mb-1.5">Business Impact</div>
                   <div className="text-sm bg-surface-2 rounded-xl p-3">
-                    <div className="font-medium text-rose-400 mb-1">
+                    <div className="font-medium text-rose-600 mb-1">
                       {formatUsd(detail.business_impact.estimated_impact_usd)} · {detail.business_impact.risk_category}
                     </div>
                     {detail.business_impact.narrative}

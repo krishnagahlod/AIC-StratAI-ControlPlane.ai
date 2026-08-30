@@ -153,7 +153,7 @@ export default function TryItLivePage() {
               {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               {sending ? "Sending through proxy…" : "Send Request"}
             </Button>
-            {error && <p className="text-sm text-rose-400">{error}</p>}
+            {error && <p className="text-sm text-rose-600">{error}</p>}
           </div>
         </Card>
 
@@ -173,10 +173,10 @@ export default function TryItLivePage() {
                     <Badge
                       className={
                         immediate.syncAction === "blocked"
-                          ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
+                          ? "text-rose-600 bg-rose-50 border-rose-200"
                           : immediate.syncAction === "redacted"
-                          ? "text-amber-400 bg-amber-400/10 border-amber-400/30"
-                          : "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
+                          ? "text-amber-700 bg-amber-50 border-amber-200"
+                          : "text-emerald-600 bg-emerald-50 border-emerald-200"
                       }
                     >
                       {immediate.syncAction}
@@ -199,7 +199,7 @@ export default function TryItLivePage() {
                       <div className="flex items-center gap-4">
                         <TrustRing score={detail.evaluation.trust_score} />
                         <div>
-                          <div className="text-sm font-medium font-display">TrustScore {detail.evaluation.trust_score}</div>
+                          <div className="text-sm font-medium">TrustScore {detail.evaluation.trust_score}</div>
                           <div className="text-xs text-muted-2 capitalize">{detail.evaluation.risk_level} risk</div>
                         </div>
                       </div>

@@ -1,22 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090d;
-  --surface: #111318;
-  --surface-2: #171a21;
-  --surface-3: #20232c;
-  --border: #24272f;
-  --border-strong: #33363f;
-  --foreground: #eceef2;
-  --muted: #8b93a5;
-  --muted-2: #62687a;
-  --accent: #7c6cfd;
-  --accent-2: #22d3c9;
-  --accent-soft: #7c6cfd1a;
+  /* Accenture-derived palette (extracted from the reference deck's actual theme XML) */
+  --background: #ffffff;
+  --page-plane: #faf9fc;
+  --surface: #ffffff;
+  --surface-2: #f7f5fb;
+  --surface-3: #f0ecf7;
+  --border: #e7e3f0;
+  --border-strong: #d7d0e6;
+  --foreground: #0a0011;
+  --muted: #6b6575;
+  --muted-2: #8a8594;
+  --accent: #a100ff;
+  --accent-deep: #7500c0;
+  --accent-soft: #a100ff14;
+  --accent-tint: #f3edff;
+
+  /* Categorical chart series — validated: node validate_palette.js against #FFFFFF, all checks pass */
+  --series-1: #7500c0; /* TrustScore / primary */
+  --series-2: #0e9488; /* Cost */
+  --series-3: #2a78d6; /* Performance */
+  --series-4: #c25f00; /* Responsibility */
+
+  /* Status palette — fixed, never reused for chart series */
+  --status-good: #0ca30c;
+  --status-warning: #b8860b;
+  --status-serious: #c96a3e;
+  --status-critical: #c22b2b;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-page-plane: var(--page-plane);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
@@ -26,35 +42,27 @@
   --color-muted: var(--muted);
   --color-muted-2: var(--muted-2);
   --color-accent: var(--accent);
-  --color-accent-2: var(--accent-2);
-  --font-sans: var(--font-geist-sans);
+  --color-accent-deep: var(--accent-deep);
+  --font-sans: var(--font-public-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--background);
+  background: var(--page-plane);
   color: var(--foreground);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Atmospheric gradient mesh sitting behind the main content — fixed, low-opacity,
-   never intercepts pointer events. Gives the dark surface depth without competing
-   with data legibility. */
+/* Very subtle atmospheric wash behind the main content — light mode tolerates far
+   less color than dark, so this is a whisper, not a glow. */
 .mesh-backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(60rem 34rem at 8% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
-    radial-gradient(50rem 30rem at 100% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 55%),
-    radial-gradient(70rem 40rem at 50% 120%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%);
-}
-
-.font-display {
-  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
-  letter-spacing: -0.01em;
+    radial-gradient(50rem 26rem at 10% -12%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%),
+    radial-gradient(40rem 24rem at 100% 0%, color-mix(in srgb, var(--accent-deep) 5%, transparent), transparent 55%);
 }
 
 ::-webkit-scrollbar {
@@ -78,13 +86,13 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 2px;
 }
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent);
   }
   100% {
     box-shadow: 0 0 0 8px color-mix(in srgb, currentColor 0%, transparent);

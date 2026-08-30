@@ -21,7 +21,7 @@ function Countdown({ deadlineMs }: { deadlineMs: number | null }) {
   const remaining = Math.max(0, Math.round((deadlineMs - now) / 1000));
   const urgent = remaining <= 15;
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-mono ${urgent ? "text-rose-400" : "text-amber-400"}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-mono ${urgent ? "text-rose-600" : "text-amber-700"}`}>
       <Timer size={12} className={urgent ? "pulse-dot" : ""} />
       {remaining > 0 ? `${remaining}s until safe default` : "SLA expired — safe default applying"}
     </span>
@@ -105,8 +105,8 @@ export default function ReviewQueuePage() {
                       <Badge
                         className={
                           item.decision === "auto_block_alert"
-                            ? "text-rose-400 bg-rose-400/10 border-rose-400/30"
-                            : "text-amber-400 bg-amber-400/10 border-amber-400/30"
+                            ? "text-rose-600 bg-rose-50 border-rose-200"
+                            : "text-amber-700 bg-amber-50 border-amber-200"
                         }
                       >
                         {decisionLabel(item.decision)}
