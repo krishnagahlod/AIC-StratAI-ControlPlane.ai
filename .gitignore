@@ -11,3 +11,7 @@ frontend/.env.local
 frontend/npm-debug.log*
 
 .DS_Store
+
+# local server logs
+prod-server.log
+*.log
