@@ -44,6 +44,10 @@ def _resolve_app(db: Session, metadata: RequestMetadata | None) -> App:
     return fallback
 
 
+def _block_message(reason: str) -> str:
+    return f"Request blocked by ControlPlane.ai: {reason}"
+
+
 def _blocked_response(request_id: str, model: str, reason: str, interaction: Interaction) -> dict:
     # A blocked request still carries the `controlplane` envelope. Callers use it to
     # correlate the block with its trace, and omitting it made a blocked prompt
@@ -55,7 +59,7 @@ def _blocked_response(request_id: str, model: str, reason: str, interaction: Int
         "choices": [
             {
                 "index": 0,
-                "message": {"role": "assistant", "content": f"Request blocked by ControlPlane.ai: {reason}"},
+                "message": {"role": "assistant", "content": _block_message(reason)},
                 "finish_reason": "content_filter",
             }
         ],
@@ -99,7 +103,9 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
             system_prompt=system_prompt,
             rag_context=payload.rag_context,
             raw_response="",
-            delivered_response="",
+            # The caller is told why it was blocked, so the trace must record the same
+            # thing — an empty delivered_response reads as "nothing happened" in the UI.
+            delivered_response=_block_message("daily AI budget for this app has been exceeded"),
             model=model,
             sync_action="blocked",
             sync_flags=[{"type": "budget_exceeded"}],
@@ -122,7 +128,7 @@ def chat_completions(payload: ChatCompletionRequest, background_tasks: Backgroun
             system_prompt=system_prompt,
             rag_context=payload.rag_context,
             raw_response="",
-            delivered_response="",
+            delivered_response=_block_message("prompt matched a blocked jailbreak/injection pattern"),
             model=model,
             sync_action="blocked",
             sync_flags=prompt_check.flags,
