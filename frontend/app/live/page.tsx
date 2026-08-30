@@ -230,6 +230,9 @@ export default function LiveFeedPage() {
               <div className="border-t border-border pt-4 flex flex-wrap items-center gap-3">
                 <Link
                   href={`/evidence/${detail.id}`}
+                  // Don't prefetch: this is a per-interaction report the reader may never
+                  // open, and the selection changes with every row click.
+                  prefetch={false}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                 >
                   <FileText size={15} /> Evidence pack
