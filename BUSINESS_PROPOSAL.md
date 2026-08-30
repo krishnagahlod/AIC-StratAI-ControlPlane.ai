@@ -164,9 +164,12 @@ Using our own product's Business Impact Scorer assumptions — the same constant
 | Remediation cost per compliance incident | $1,500 | same |
 | Weekly interactions per app | 12,000 | same — matches the brief's own "tens of thousands per week" parameter |
 
-At even a **conservative 2-3% flagged-interaction rate** (well below the 5-15% general hallucination rate our research found, since flagged ≠ always harmful), an enterprise running this reference scenario is looking at:
-- **Tens of thousands of dollars per week** in avoidable revenue, compliance, and reputational exposure surfaced *before* it becomes a customer complaint or a court filing — not after, which is the current default state per our research (§3).
-- A cost-optimization signal on top: our own research found tiered model routing saves **87%** on a per-million-token basis versus routing everything to a frontier model. The Cost Analyzer's model-overuse detection is the mechanism that catches exactly this pattern.
+**We are deliberately not asserting a single precise weekly-dollar figure here**, and we want to be explicit about why: the Business Impact Scorer estimates each *flag* by extrapolating that failure pattern across the app's full traffic volume (e.g., "if this hallucination is representative, it could affect ~1,700 users/day"). That means multiplying a per-flag dollar estimate by a count of flagged interactions would double-count the same extrapolated exposure — a mistake we'd rather name than make. What the methodology *does* support, concretely:
+
+- A **single** compliance-category incident (e.g., one auto-redacted PII leak) computes to **~$9,500** in expected regulatory-and-remediation exposure under our stated assumptions — a real number the working prototype produces today, traceable line-by-line to the assumptions table above.
+- Our seeded historical demonstration (165 interactions, 14 days, three apps, deliberately weighted toward failure scenarios to exercise every code path) surfaces a cumulative estimated exposure of **~$740K** on the dashboard — a number we flag as **demo-representative, not production-representative**, precisely because the seed mix over-indexes on flagged cases by design.
+- The honest, defensible claim: even one high-severity incident of the kind enterprises currently only discover after the fact is worth **five figures** in avoidable exposure — and validating a realistic per-enterprise weekly run-rate is exactly what the Phase 2 design-partner pilot (§9) exists to measure against real production traffic, rather than a simulated estimate we can't yet stand behind.
+- Separately, a **quantified cost-efficiency signal**: our research found tiered model routing saves **87%** on a per-million-token basis versus routing everything to a frontier model. The Cost Analyzer's model-overuse detection is the mechanism that catches exactly this pattern.
 
 ### 7.2 Revenue model
 
@@ -180,7 +183,7 @@ This mirrors the "control-plane infrastructure as the moat" thesis our research 
 
 ### 7.3 Illustrative unit economics
 
-At the benchmark our research found — **0.5-1% of AI budget for initial governance setup, 0.3-0.5% ongoing**, against a $7M average 2026 enterprise AI budget — a single mid-size enterprise account implies a **$21K-$70K/year** governance-tooling line item. A go-to-market targeting mid-market-to-enterprise accounts running 3+ concurrent AI use cases (the brief's own reference profile) gives a bottom-up path to a defensible SOM, rather than an unsupportable claim on a top-down multi-billion-dollar TAM.
+At the benchmark our research found — **0.5-1% of AI budget for initial governance setup, then 0.3-0.5% ongoing annually** — against a $7M average 2026 enterprise AI budget, that implies **~$35K-$70K in initial setup spend** and **~$21K-$35K/year ongoing** as the addressable governance-tooling line item per mid-size enterprise account. A go-to-market targeting mid-market-to-enterprise accounts running 3+ concurrent AI use cases (the brief's own reference profile) gives a bottom-up path to a defensible SOM — e.g., 100 such accounts at the ongoing-spend midpoint alone implies a **~$2.8M annual recurring line**, before any setup-fee or expansion revenue — rather than an unsupportable claim on a top-down multi-billion-dollar TAM.
 
 ---
 
