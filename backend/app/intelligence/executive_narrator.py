@@ -102,8 +102,25 @@ def _deterministic_narrative(audience: str, stats: dict) -> str:
 
 
 def _call(prompt: str) -> str:
-    text = generate_text(prompt, model=get_settings().gemini_judge_model, fallback=_UNAVAILABLE)
-    return (text or "").strip()
+    """Try the judge tier first, then the primary model, then give up.
+
+    Free-tier Gemini quotas are per-model *per day*, not just per minute, so a single
+    exhausted model would otherwise drop every narrative onto the deterministic template
+    for the rest of the day. Falling back across tiers means the narrator keeps working
+    while any model has headroom, and the deterministic template stays as the last resort
+    rather than the first thing a quota blip triggers.
+    """
+    settings = get_settings()
+    tried: list[str] = []
+    for model in (settings.gemini_judge_model, settings.gemini_model):
+        if model in tried:
+            continue
+        tried.append(model)
+        text = generate_text(prompt, model=model, fallback=_UNAVAILABLE)
+        text = (text or "").strip()
+        if text and text != _UNAVAILABLE:
+            return text
+    return _UNAVAILABLE
 
 
 def generate(audience: str, stats: dict) -> dict:
