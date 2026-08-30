@@ -1,5 +1,11 @@
 # ControlPlane.ai — Prototype Improvement Implementation Plan
 
+> **Status: complete — all four phases shipped, 17:00–17:50 IST, 30 Aug 2026.**
+> All ten audit findings resolved, all four requested additions built. Final verification:
+> **0 console errors, 0 network failures** across a 25-screenshot production-build sweep of
+> every page and control, plus a passing kill-and-recover resilience test. See §12 for the
+> outcome record, including three defects found *during* the work that the audit had missed.
+
 **Author:** Engineering, Team StratAI
 **Date:** August 30, 2026, 17:05 IST
 **Input:** [`docs/product_audit_report.md`](./product_audit_report.md) — 10 severity-ranked findings from a live, hands-on product audit
@@ -316,3 +322,54 @@ On completion, the following carry into the recording session:
 2. **Hit "Reset demo data" immediately before the Review Queue scene** — 10-minute SLA window, good for several takes.
 3. **Follow the demo arc in §8 of the audit report** — with one amendment: the **Engineer narrator tab is no longer off-limits.** After W1 it becomes a feature to show deliberately, because the grounding badge is the proof point.
 4. **Lead Try It Live with the Jailbreak preset** if W8 ships — the pipeline halting mid-flow is the strongest single visual in the product.
+
+---
+
+## 12. Outcome Record
+
+### 12.1 Audit findings — all ten resolved
+
+| # | Finding | Resolution |
+|---|---|---|
+| 1 | Narrator fabricates service names | Real app names passed in; grounding rules added; deterministic entity check with regenerate-once and template fallback; verdict shown in UI |
+| 2 | Whole-app silent failure on disconnect | Reachability tracked at the single `request()` choke point; outage banner + sidebar health dot; verified recovering with no reload |
+| 3 | Garbled spend Y-axis | Adaptive USD formatter sized from the series max; axis width derived from the widest label; plot headroom added |
+| 4 | `0`/`$0` loading flash | `StatCard` skeleton state; list state initialised `null` so loading ≠ empty; chart and panel skeletons; teaching empty states |
+| 5 | Dev-mode error badge on camera | Verified absent under `npm run build && npm run start`; recording note added to README |
+| 6 | Try It Live stuck loading | Root cause was different from the audit's reading — see §12.3 |
+| 7 | Stale cross-app selection | Selection cleared with the filter; "Flagged only" toggle added for a demo-worthy default |
+| 8 | Cents on six-figure estimates | Rounded at source in `_collect_stats` — same line that fixed finding #1's data gap |
+| 9 | Repeated seed prompts | 52 distinct prompts, up from 15; worst repetition in a 20-row window down from 4+ to 3 |
+| 10 | Blocked jailbreak shows TrustScore 90 | Per the agreed decision, scoring unchanged; blocked/redacted traces now lead with a plain-language outcome banner, score demoted to supporting evidence |
+
+### 12.2 Additions — all four built
+
+Live pipeline visualisation (W8), richer seed data (W7), demo mode (W9), compliance evidence export (W10). Every pipeline stage advances on a real backend signal; nothing runs on a timer.
+
+### 12.3 Three defects found during the work that the audit missed
+
+The audit was a black-box product walkthrough. Building against the code surfaced three things it could not have seen:
+
+1. **Blocked requests returned no `controlplane` envelope at all.** The client dereferenced `undefined`, so Try It Live's Jailbreak preset — the single most compelling demo moment — showed a red transport error instead of the block. Blocked interactions now carry the full envelope, report `model_called: false`, and are dispatched for evaluation like any other, because a block is a governance event that belongs in the trace and the audit trail.
+2. **The `escalate_human` tier was unreachable.** No seeded interaction scored below 70, so the 30–69 band was never entered and the Human Review Queue could only ever hold items forced there by the critical-safety override — a four-tier system demonstrating three. The cause is structural rather than a scoring bug: a weighted average across three dimensions cannot fall below 70 when only one is penalised, and every scenario failed on exactly one. Three compound-failure scenarios (one per app) now exercise all four tiers.
+3. **An unhandled rejection leaked a timer.** Try It Live's poll was an `async setInterval` callback with no `try`/`catch`; a backend failure mid-poll rejected unhandled every 1.5s and the interval was never cleared.
+
+### 12.4 One audit claim corrected
+
+The audit recorded Try It Live's button as stuck on "Sending through proxy…" with no error (finding #6). Reading the code, `submit()` already had a `catch` setting the error and a `finally` clearing the loading state; testing against a killed backend confirmed the button resets correctly and a visible error appears. **The screenshot was a 2-second timing artifact, not a hang.** The real defect on that code path was the timer leak in §12.3.
+
+### 12.5 Verification performed
+
+- Production build (`npm run build`) — clean, TypeScript included.
+- 25-screenshot automated sweep of all 7 pages and every control across 1440 / 1920 / 390 viewports: **0 console errors, 0 network failures.**
+- Kill-and-recover resilience test: outage detected within one poll cycle, banner cleared automatically on recovery with no page reload.
+- Narrator grounding: verified across all three personas plus the rate-limited fallback path, which serves a real report rather than an error.
+- Post-reseed Playground calibration: precision 1.00, recall 0.78 at the recommended threshold, false positives appearing only above it.
+- Evidence export: pack renders all six sections and prints to a clean PDF; CSV emits 134 finding rows with a 73/61 deterministic-vs-LLM split.
+
+### 12.6 Carried into the recording session
+
+1. Record against the production build, never `npm run dev`.
+2. Hit **Arm review queue** in the sidebar immediately before the Review Queue scene — 10-minute windows, good for several takes.
+3. **The Engineer narrator tab is no longer off-limits.** After W1 it is a feature to show deliberately: the grounding badge is the proof point.
+4. Lead Try It Live with the **Jailbreak** preset — the pipeline halting at Sync Guardrails with Model Call greyed out and labelled "Never called" is the strongest single visual in the product.
