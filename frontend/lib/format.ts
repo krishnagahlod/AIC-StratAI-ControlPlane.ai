@@ -83,9 +83,19 @@ export function decisionLabel(decision: string): string {
     .join(" ");
 }
 
+// Acronyms that must not be title-cased into "Pii" or "Sla".
+const ACRONYMS: Record<string, string> = {
+  pii: "PII",
+  sla: "SLA",
+  llm: "LLM",
+  api: "API",
+  gdpr: "GDPR",
+  rag: "RAG",
+};
+
 export function flagLabel(type: string): string {
   return type
     .split("_")
-    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .map((w) => ACRONYMS[w.toLowerCase()] ?? w[0].toUpperCase() + w.slice(1))
     .join(" ");
 }

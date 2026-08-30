@@ -77,15 +77,19 @@ system prompts make it firm.
 
 ## Scene 3 ★ — The trace: evidence, not a score *(1:25–2:40)*
 
-**On screen:** Back to **Live Feed**. Click a row with a **hallucination** flag. Walk down the detail panel in order: prompt → source context → delivered response → sub-scores → flags.
+**On screen:** Back to **Live Feed**, **Flagged only** on. Click the Customer Support Bot row badged **redacted** with **3 flags**, beginning *"The customer says they were double-charged on order #55218…"* (TrustScore 53). Walk down the detail panel in order: banner → prompt → source context → delivered response → raw output → sub-scores → flags.
+
+> **Why this trace:** it is the only one that carries all three stories at once — a fabricated number, a fabricated person, and both detection methods side by side. It is also the trace that produces the **$9,500** figure on the business-case slide, and it sits in the Review Queue for Scene 8.
 
 **Narration:**
 
 > "Here's where an engineer lives. Every interaction has a full trace.
 >
-> The prompt. The source document the model was supposed to be faithful to. And the response it actually gave.
+> The prompt. The source document the model was supposed to be faithful to. And the response it actually gave — where the model invented a refund amount the policy never authorised, *and* invented a customer's email and phone number that don't exist.
 >
-> Underneath, the TrustScore breaks into its three components — Performance, Cost, Responsibility — each scored independently, then weighted by that application's own policy.
+> That second part was caught on the synchronous path and redacted before the agent ever saw it. Underneath, in red, is the raw output we retain for audit. One response, two different kinds of failure — which is exactly why single-category tools miss things.
+>
+> Underneath, the TrustScore breaks into its three components — Performance twenty-five, Cost one hundred, Responsibility fifty — each scored independently, then weighted by that application's own policy.
 >
 > Then the flags. And look at the tag on each one: **rule** or **LLM judge**. That distinction matters more than anything else on this screen.
 >
