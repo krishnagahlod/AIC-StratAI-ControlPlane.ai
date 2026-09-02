@@ -5,6 +5,11 @@ applications and the models they call, scores every single interaction on Perfor
 and Responsibility, converts each finding into a dollar figure, and routes the decision
 through confidence-tiered human escalation instead of a binary block-or-allow.**
 
+[![CI](https://github.com/krishnagahlod/AIC-StratAI-ControlPlane.ai/actions/workflows/ci.yml/badge.svg)](https://github.com/krishnagahlod/AIC-StratAI-ControlPlane.ai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-A100FF.svg)](LICENSE)
+![Tests](https://img.shields.io/badge/tests-70%20passing-success)
+![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)
+
 Built by **Team StratAI** — Krishna Gahlod, Mrunal Pachpande, Rudraksh Sharma (IIT Bombay) —
 for the **Accenture Innovation Challenge 2026**, Round 2, Problem Statement 1.
 
@@ -13,9 +18,10 @@ end to end, and has been verified from a clean clone on a fresh machine.
 
 | | |
 |---|---|
-| **Run it** | [§6 Running it](#6-running-it) — two commands per service, no Docker required |
-| **What's real vs simplified** | [§4](#4-whats-real-whats-simplified--and-why) — stated plainly, including what we did *not* build |
+| **Run it** | [§7 Running it](#7-running-it) — two commands per service, no Docker required |
+| **What's real vs simplified** | [§5](#5-whats-real-whats-simplified--and-why) — stated plainly, including what we did *not* build |
 | **Why some checks are deterministic and others use an LLM** | [§3](#3-detection-deterministic-where-it-must-be-llm-where-it-has-to-be) |
+| **Measured results** | [§4](#4-measured-results) — precision, recall and latency, each with the command that produced it |
 | **Business proposal, market research, audit** | [`docs/`](docs/) |
 
 ---
@@ -25,14 +31,15 @@ end to end, and has been verified from a clean clone on a fresh machine.
 1. [The problem](#1-the-problem)
 2. [Architecture](#2-architecture)
 3. [Detection: deterministic vs LLM-as-judge](#3-detection-deterministic-where-it-must-be-llm-where-it-has-to-be)
-4. [What's real, what's simplified — and why](#4-whats-real-whats-simplified--and-why)
-5. [Tech stack and design system](#5-tech-stack-and-design-system)
-6. [Running it](#6-running-it)
-7. [Guided walkthrough](#7-guided-walkthrough)
-8. [API reference](#8-api-reference)
-9. [Repository structure](#9-repository-structure)
-10. [Known limitations and roadmap](#10-known-limitations-and-roadmap)
-11. [Documentation index](#11-documentation-index)
+4. [Measured results](#4-measured-results)
+5. [What's real, what's simplified — and why](#5-whats-real-whats-simplified--and-why)
+6. [Tech stack and design system](#6-tech-stack-and-design-system)
+7. [Running it](#7-running-it)
+8. [Guided walkthrough](#8-guided-walkthrough)
+9. [API reference](#9-api-reference)
+10. [Repository structure](#10-repository-structure)
+11. [Known limitations and roadmap](#11-known-limitations-and-roadmap)
+12. [Documentation index](#12-documentation-index)
 
 ---
 
@@ -67,7 +74,7 @@ AI application (support bot / copilot / decision tool)
         │  POST /v1/chat/completions   (OpenAI-compatible — a one-line base-URL change)
         ▼
 ┌─────────────────────── DATA PLANE — backend/app/proxy ───────────────────────┐
-│ Synchronous, regex-only, sub-10ms:                                            │
+│ Synchronous, regex-only — measured ~0.06ms p50, under 0.25ms p99 (§4):        │
 │   prompt PII scan → jailbreak blocklist → daily budget gate                   │
 │   → forward to Gemini → output PII / data-leakage scan → return to caller      │
 │ Blocked requests never reach the model at all.                                │
@@ -137,7 +144,7 @@ that produced it** — visible in the UI, the API and the compliance export.
 
 | Check | Method | Why this method |
 |---|---|---|
-| Input/output PII, jailbreak blocklist, data leakage (API keys, internal URLs) | **Deterministic** — regex and entity match | Must run on the synchronous path. Sub-millisecond, not "fast for an LLM call". |
+| Input/output PII, jailbreak blocklist, data leakage (API keys, internal URLs) | **Deterministic** — regex and entity match | Must run on the synchronous path. Measured well under 1ms at p99 (§4) — sub-millisecond in fact, not just "fast for an LLM call". |
 | Numeric-claim hallucination — a figure in the answer absent from the source | **Deterministic** — number extraction and set comparison | A quantitative claim must never depend on a model's assessment of itself. |
 | Token cost, pricing, model–task mismatch | **Deterministic** — real token counts × a pricing table, keyword complexity heuristic | Cost arithmetic must never be LLM-generated. |
 | Response latency against the application's budget | **Deterministic** — measured against each app's own budget | A stopwatch comparison should never be delegated to a model. |
@@ -146,8 +153,10 @@ that produced it** — visible in the UI, the API and the compliance export.
 | Business impact in dollars | **Deterministic formula** over published assumptions | A rule-based mapping table, not a model inventing a number. |
 | Executive Narrator prose | **LLM-generated**, then **deterministically grounding-checked** | The numbers are never invented; only the sentences wrapping them are. See below. |
 
-On the current seed dataset that split is **41 deterministic, 30 rule-based, 63 LLM-as-judge**
-findings — all individually labelled.
+On the current seed dataset that split is **64 deterministic, 30 rule-based, 63 LLM-as-judge**
+findings — all individually labelled. **94 of 157 (60%) are reached without an LLM**: the ones
+that survive a quota outage, cost nothing per call, and return the same verdict every time.
+Counted by `python -m eval.report`, not by hand.
 
 Where no source context is supplied, an LLM-as-judge finding is tagged **unverifiable** and
 reported at reduced confidence. The system states that it could not verify, rather than implying
@@ -177,7 +186,103 @@ provably true.
 
 ---
 
-## 4. What's real, what's simplified — and why
+## 4. Measured results
+
+Claims about a detector are worth what their measurements are worth, so every figure below is
+generated by a command in this repository and written to a committed file. Re-run the command
+and you either reproduce the file or see a diff.
+
+```bash
+cd backend
+python -m eval.report          # → reports/evaluation.md
+python -m eval.bench_latency   # → reports/latency.md
+```
+
+The corpus is **165 labelled interactions — 96 carrying a real problem, 69 clean.** Each label
+was written when the scenario was authored, before any analyzer ran against it, so the labels
+are independent of the scores used to judge them.
+
+### Detection — did we notice?
+
+| Measure | Value | |
+|---|---|---|
+| Recall | **1.000** | every one of the 96 problems produced a finding |
+| Precision | 0.881 | 96 of 109 findings were on real problems |
+| False-positive rate | 0.188 | 13 of 69 clean interactions also drew a finding |
+
+Detection is deliberately noisy. A finding is cheap — it is recorded and it moves a trend line,
+and it costs nobody an interruption.
+
+### Routing — did we act?
+
+| Tier boundary | Fires on | Precision | Recall |
+|---|---|---|---|
+| Any routing change (< 90) | 37 | 1.000 | 0.385 |
+| Human attention (< 70) | 9 | 1.000 | 0.094 |
+| Automatic block (< 30) | 0 from score alone | — | — |
+
+**No clean interaction crossed any tier boundary.** The lowest-scoring clean interaction scored
+95.2, leaving a 5.2-point margin above the first boundary across 69 clean samples.
+
+### A published miss
+
+Detection recall is 1.000. Routing recall is 0.385. **59 of 96 problems were detected and
+recorded but scored high enough that nothing about their handling changed.**
+
+The cause is structural rather than a detector weakness: TrustScore is a weighted average, and a
+response that is factually contradictory but cheap and perfectly safe fails one dimension while
+passing two, so the mean lands above 90. The fix is not more sensitivity — lowering the boundary
+would spend that 5.2-point margin and start catching clean traffic. It is to route on
+*consequence*: the estimated business impact and reversibility that the system already computes
+and currently ignores at decision time. That is on the roadmap in §11, and the measurement is
+published now because it is what the corpus shows.
+
+### Why the system grades instead of blocking
+
+The corpus is 58% problems by construction. Production traffic is not, and precision depends on
+the base rate however good a detector is. Applying Bayes' rule to the *measured* rates above:
+
+| | at 1% prevalence | at 5% | at 10% | on this corpus (58%) |
+|---|---|---|---|---|
+| Detection layer | **5.1%** | 21.8% | 37.1% | 88.1% |
+| Routing at < 90 (worst case) | 8.2% | 31.8% | 49.6% | 100% |
+
+At a 1% base rate, a detector with perfect recall and our measured false-positive rate would be
+right about **5% of the time** — roughly 19 false alarms in every 20. That is arithmetic, not a
+defect, and no amount of tuning removes it.
+
+**This is the argument for the whole design: at realistic prevalence no automated tier is
+precise enough to be trusted on its own.** Which is why the tiers do different things rather
+than the same thing at different sensitivities — a flag is allowed to be noisy because it costs
+nothing, an escalation puts a human in front of the evidence, and a block is reserved for the
+override path where the evidence is categorical rather than statistical.
+
+The routing row is deliberately pessimistic: routing produced *zero* false positives across 69
+clean samples, which would project to 100% precision at every prevalence. Zero observed is not
+zero true, so the table uses the rule of three — the 95% upper bound after 69 clean trials with
+no events, FPR ≤ 0.043.
+
+### Control-plane overhead
+
+Only code in this repository is timed. How long Gemini takes is a property of the provider, not
+something an oversight layer chooses, so it is never folded into a claim about our own cost.
+
+| Path | p50 | p95 | p99 | Target |
+|---|---|---|---|---|
+| `check_prompt` | 0.018 ms | 0.035 ms | 0.053 ms | < 10 ms — met |
+| `check_response` | 0.031 ms | 0.072 ms | 0.096 ms | < 10 ms — met |
+| **Data Plane, full request** | **0.057 ms** | 0.141 ms | **0.207 ms** | < 10 ms — met |
+| TrustScore + routing decision | 0.002 ms | 0.002 ms | 0.003 ms | < 1 ms — met |
+
+Single-process, single-machine figures for the cost of the code itself, not a load test; under
+real concurrency the tail would widen. **These move between runs** — at this scale the
+measurement is dominated by scheduler noise, so prose elsewhere quotes a stable bound (p50 around
+0.06 ms, p99 comfortably under 0.25 ms) rather than a figure the next run would contradict. Full
+caveats in [`reports/latency.md`](reports/latency.md).
+
+---
+
+## 5. What's real, what's simplified — and why
 
 Everything in §2 and §3 is implemented and running. The following simplifications were made
 deliberately, and are documented rather than hidden.
@@ -235,7 +340,7 @@ JSON — the difference between "quota exhausted, retry in 30s" and a stack trac
 
 ---
 
-## 5. Tech stack and design system
+## 6. Tech stack and design system
 
 - **Backend** — Python 3.13, FastAPI, SQLAlchemy 2.0, SQLite, `google-genai` SDK.
 - **Frontend** — Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Recharts, Framer Motion.
@@ -261,7 +366,7 @@ this is untrusted model text, and building React elements from a known-small gra
 
 ---
 
-## 6. Running it
+## 7. Running it
 
 **Prerequisites:** Python 3.11+, Node.js 20+, and a Gemini API key
 ([aistudio.google.com/apikey](https://aistudio.google.com/apikey) — the free tier is sufficient).
@@ -329,7 +434,7 @@ tool should not ship an undisclosed way to manufacture its own state.
 
 ---
 
-## 7. Guided walkthrough
+## 8. Guided walkthrough
 
 | # | Page | What to look for |
 |---|---|---|
@@ -338,13 +443,13 @@ tool should not ship an undisclosed way to manufacture its own state.
 | 3 | **Trends** | TrustScore and its three sub-dimensions over 14 days. A drop in Responsibility and a drop in Cost are different problems with different owners. |
 | 4 | **Business Impact** | The same data narrated for Engineer, CISO and CEO — each with the green **grounding-verified** badge beneath it. |
 | 5 | **Review Queue** | Pending escalations with live SLA countdowns and a three-way action: approve, reject, or **edit and approve**. |
-| 6 | **Policy Playground** | Drag the threshold and watch precision, recall, F1 and false-positive rate recompute against 165 labelled interactions. At the recommended threshold of 95: 78 blocked, precision 1.00, FPR 0.0%, F1 0.876. |
+| 6 | **Policy Playground** | Drag the threshold and watch precision, recall, F1 and false-positive rate recompute against 165 labelled interactions. At the recommended threshold of 95: 76 blocked, precision 1.00, recall 0.792, FPR 0.0%, F1 0.884. |
 | 7 | **Try It Live** | Send a real request through the proxy. Watch the six-stage pipeline advance. The **Jailbreak** preset halts at the synchronous guardrail with the model stage marked *never called*. |
 | 8 | **Evidence pack** | From any trace, open the compliance evidence pack — prompt, both response versions, every finding with its detection method, the impact estimate with its assumptions, and the governance decision. Prints straight to PDF. |
 
 ---
 
-## 8. API reference
+## 9. API reference
 
 All responses are JSON unless noted.
 
@@ -385,7 +490,7 @@ All responses are JSON unless noted.
 
 ---
 
-## 9. Repository structure
+## 10. Repository structure
 
 ```
 controlplane-ai/
@@ -402,24 +507,34 @@ controlplane-ai/
 │       ├── db/             SQLAlchemy models
 │       ├── seed/           Application definitions and the deterministic seeder
 │       └── config.py       Policy tiers, pricing, business assumptions, patterns
+│   ├── eval/               Evaluation harness — writes the committed reports/
+│   └── tests/              70 pytest cases over scoring, routing, detection, grounding
 ├── frontend/
 │   ├── app/                One route per dashboard view, plus the print evidence pack
 │   ├── components/         UI primitives, pipeline visualisation, model-output renderer
 │   └── lib/                API client, connection state, formatting, types
-├── docs/                   Architecture, market research, product audit, demo script
+├── reports/                Committed, reproducible evidence — not build output
+├── docs/                   Architecture, market research, sources, audit, demo script
+├── .github/workflows/      CI — backend tests and a frontend production build
 ├── BUSINESS_PROPOSAL.md    Full Round 2 business proposal
+├── LICENSE                 MIT
 └── README.md
 ```
 
 ---
 
-## 10. Known limitations and roadmap
+## 11. Known limitations and roadmap
 
 Named deliberately. A proposal claiming to have solved these in a hackathon prototype would not
 survive technical due diligence.
 
 **Current limitations**
 
+- **Score-based routing under-reaches, and we measured it.** Detection recall is 1.000, but
+  routing recall at the first tier boundary is 0.385 — 59 of 96 labelled problems were detected
+  and recorded without their handling changing (§4). TrustScore is a weighted average, so a
+  single-dimension failure is diluted by two passing dimensions. This is the most significant
+  known gap in the system.
 - **No multi-tenant authentication** on the proxy endpoint — single-process demo.
 - **In-process state** rather than a real message queue; this is the binding constraint on
   evaluation throughput.
@@ -435,13 +550,13 @@ survive technical due diligence.
 
 | Phase | Scope |
 |---|---|
-| **Phase 1** — 2–3 months | Redis Streams message queue; purpose-built classifiers to reduce judge dependency; a policy-as-code editor; automated threshold recalibration from captured reviewer decisions. |
+| **Phase 1** — 2–3 months | **Consequence-aware routing** — escalate on expected loss (estimated business impact × probability of error) and on reversibility, both already computed and currently unused at decision time; this is the direct answer to the §4 routing gap. Redis Streams message queue; purpose-built classifiers to reduce judge dependency; a policy-as-code editor; automated threshold recalibration from captured reviewer decisions. |
 | **Phase 2** — 3–6 months | Design-partner deployment on a non-critical use case; multi-turn conversation-state tracking; ISO 42001 / EU AI Act evidence-bundle export. |
 | **Phase 3** | Multi-tenant auth and SOC 2 readiness; horizontal scaling of the evaluation layer; industry policy-template packs. |
 
 ---
 
-## 11. Documentation index
+## 12. Documentation index
 
 | Document | What it covers |
 |---|---|
@@ -452,6 +567,9 @@ survive technical due diligence.
 | [`docs/implementation_plan.md`](docs/implementation_plan.md) | How those findings were resolved, and what was found during the work |
 | [`docs/demo_video_script.md`](docs/demo_video_script.md) | Scene-by-scene demo script with a pre-flight runbook |
 | [`docs/competitor_analysis.md`](docs/competitor_analysis.md) | Round 1 competitive analysis, re-verified in Round 2 |
+| [`docs/sources.md`](docs/sources.md) | Every figure we quote, with its source, date and confidence — and which numbers are our own assumptions rather than findings |
+| [`reports/evaluation.md`](reports/evaluation.md) | Generated: detection and routing quality against the labelled corpus |
+| [`reports/latency.md`](reports/latency.md) | Generated: control-plane overhead, measured |
 
 ---
 

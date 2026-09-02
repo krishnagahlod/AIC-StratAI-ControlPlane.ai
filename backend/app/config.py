@@ -108,8 +108,10 @@ DATA_LEAKAGE_PATTERNS = {
     "internal_url": r"\bhttps?://(?:jira|confluence|internal|corp)\.[A-Za-z0-9.-]+\S*\b",
 }
 BLOCKLIST_PATTERNS = [
-    r"ignore (all|any|previous|prior) instructions",
-    r"disregard (all|any|previous|prior) (instructions|rules)",
+    # The qualifiers stack in real attempts — "ignore all previous instructions" is the
+    # canonical phrasing, and a single-qualifier pattern misses exactly that one.
+    r"ignore\s+(?:all\s+|any\s+)?(?:previous|prior|the\s+above)?\s*instructions",
+    r"disregard\s+(?:all\s+|any\s+)?(?:previous|prior|the\s+above)?\s*(?:instructions|rules)",
     r"reveal (your|the) system prompt",
     r"you are now (in )?(dan|developer) mode",
     r"pretend (you have|to have) no (restrictions|filters)",

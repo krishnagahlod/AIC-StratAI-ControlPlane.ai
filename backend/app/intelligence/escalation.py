@@ -19,14 +19,18 @@ def _tier_for_score(trust_score: float) -> str:
 
 def decide(trust_score: float, flags: list[dict]) -> dict:
     tier = _tier_for_score(trust_score)
-    non_pii_types = {f["type"] for f in flags} - _PII_ONLY_TYPES
+    flag_types = {f["type"] for f in flags}
+    non_pii_types = flag_types - _PII_ONLY_TYPES
     has_critical_safety = any(f["type"] == "safety_violation" and f["severity"] == "critical" for f in flags)
     override_applied = None
 
     if has_critical_safety:
         tier = "auto_block_alert"
         override_applied = "critical_safety_violation_forced_block"
-    elif tier in ("escalate_human", "auto_block_alert") and not non_pii_types:
+    # The downgrade below says "PII was the only problem, and it was already redacted".
+    # That claim needs PII flags to actually be present — without `flag_types`, a low score
+    # carrying no flags at all satisfied it vacuously and was quietly downgraded.
+    elif tier in ("escalate_human", "auto_block_alert") and flag_types and not non_pii_types:
         tier = "allow_flag_async"
         override_applied = "pii_already_auto_redacted_no_other_issue"
 
