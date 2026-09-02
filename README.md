@@ -577,6 +577,8 @@ survive technical due diligence.
 
 | Document | What it covers |
 |---|---|
+| [`StratAI_ControlPlane.ai_Business-Proposal.pptx`](StratAI_ControlPlane.ai_Business-Proposal.pptx) | The submitted business-proposal deck, 24 slides |
+| [`ControlPlane.ai_README.pdf`](ControlPlane.ai_README.pdf) | This document as a PDF, for the submission portal |
 | [`BUSINESS_PROPOSAL.md`](BUSINESS_PROPOSAL.md) | The full Round 2 business proposal — market, differentiation, economics, go-to-market, risks |
 | [`docs/market_research_report.md`](docs/market_research_report.md) | Market sizing, competitor funding and regulatory timeline, with 40+ cited sources |
 | [`docs/architecture_deep_dive.md`](docs/architecture_deep_dive.md) | The full architecture design this prototype implements |
