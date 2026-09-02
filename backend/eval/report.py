@@ -50,6 +50,39 @@ def precision_at_prevalence(recall: float, fpr: float, prevalence: float) -> flo
     return true_flags / (true_flags + false_flags)
 
 
+def _fp_note(sources: list[tuple[str, int]], det: dict) -> str:
+    """Say plainly whether the false-positive load is concentrated or spread out.
+
+    Written as a branch rather than a fixed sentence because the honest reading changes
+    completely depending on what the numbers turn out to be.
+    """
+    if not sources:
+        return "No detector fired on clean traffic in this corpus."
+
+    top_name, top_count = sources[0]
+    total = sum(count for _, count in sources)
+    if top_count == total and len(sources) == 1:
+        return (
+            f"**Every false positive in the corpus comes from one detector — `{top_name}`.** "
+            f"That is a far more useful result than the aggregate rate. It means the "
+            f"{det['fp']}-interaction false-positive load is not diffuse noise across the "
+            f"system: no PII, safety, bias or grounding check fired on a single clean "
+            f"interaction. Precision on those detectors is 1.000 on this corpus.\n\n"
+            f"It also localises the fix. `{top_name}` compares normalised prompts inside a "
+            f"recent-time window and fires on a Jaccard similarity above 0.85. Legitimately "
+            f"distinct questions that share most of their wording clear that bar easily — "
+            f"routine in FAQ traffic, which is the largest clean category in this corpus. The "
+            f"heuristic is measuring lexical overlap and calling it redundancy. That is a "
+            f"bounded problem in one threshold, not a systemic accuracy issue, and it is the "
+            f"first thing worth tightening."
+        )
+    return (
+        f"`{top_name}` accounts for {top_count} of {total} false positives. The remainder are "
+        f"spread across {len(sources) - 1} other detectors, so the noise is systemic rather "
+        f"than localised to a single heuristic."
+    )
+
+
 def _table(headers: list[str], rows: list[list[str]]) -> str:
     out = ["| " + " | ".join(headers) + " |", "|" + "|".join(["---"] * len(headers)) + "|"]
     out.extend("| " + " | ".join(r) + " |" for r in rows)
@@ -116,6 +149,13 @@ paid for.
     )
 
     # --- layer 1: detection ---------------------------------------------------
+    fp_sources = corpus.false_positive_sources(db)
+    fp_table = _table(
+        ["Detector firing on clean traffic", "Occurrences"],
+        [[f"`{name}`", str(count)] for name, count in fp_sources],
+    )
+    fp_note = _fp_note(fp_sources, det)
+
     parts.append(
         f"""
 ## 2. Detection layer — did we notice?
@@ -140,6 +180,15 @@ That trade is deliberate. A finding is cheap — it is recorded, it moves a tren
 costs nobody an interruption. Being noisy is the correct posture for a layer whose output is
 evidence rather than action. It is emphatically *not* the correct posture for a layer that
 blocks, which is what section 5 quantifies.
+
+### Where the noise comes from
+
+An aggregate precision figure says how noisy a system is. It does not say *where*, and only the
+second question is actionable.
+
+{fp_table}
+
+{fp_note}
 """
     )
 

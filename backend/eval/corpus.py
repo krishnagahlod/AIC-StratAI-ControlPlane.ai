@@ -153,3 +153,26 @@ def clean_score_margin(db, boundary: float = 90.0) -> dict[str, float]:
         "margin": round(min(scores) - boundary, 1),
         "n": len(scores),
     }
+
+
+def false_positive_sources(db) -> list[tuple[str, int]]:
+    """Which detectors fire on clean traffic, and how often.
+
+    Aggregate precision says how noisy the system is; this says *where* the noise comes
+    from, which is the only version of the number that tells you what to fix.
+    """
+    rows = db.execute(
+        select(Evaluation.flags, Interaction.sync_flags)
+        .join(Interaction, Interaction.id == Evaluation.interaction_id)
+        .where(Evaluation.ground_truth_is_problem.is_(False))
+    ).all()
+
+    tally: dict[str, int] = {}
+    for flags, sync_flags in rows:
+        for flag in (flags or []):
+            key = flag.get("type", "unknown")
+            tally[key] = tally.get(key, 0) + 1
+        for flag in (sync_flags or []):
+            key = f"{flag.get('type', 'unknown')} (sync)"
+            tally[key] = tally.get(key, 0) + 1
+    return sorted(tally.items(), key=lambda r: -r[1])

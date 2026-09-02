@@ -213,6 +213,13 @@ are independent of the scores used to judge them.
 Detection is deliberately noisy. A finding is cheap — it is recorded and it moves a trend line,
 and it costs nobody an interruption.
 
+**All 13 false positives come from a single detector**, `redundant_call`, which fires on a
+Jaccard similarity above 0.85 between prompts in a recent-time window — legitimately distinct
+FAQ questions share most of their wording and clear that bar. No PII, safety, bias or grounding
+check fired on a single clean interaction; precision on those is 1.000 on this corpus. That is a
+bounded problem in one threshold rather than diffuse inaccuracy, and it is the first thing worth
+tightening.
+
 ### Routing — did we act?
 
 | Tier boundary | Fires on | Precision | Recall |
@@ -331,7 +338,10 @@ condition rather than an outage. The system handles it in three places:
 - Every logical call **walks a configurable ladder of models** (`GEMINI_FALLBACK_MODELS`) before
   giving up, so one exhausted tier does not take the pipeline down.
 - Each LLM-as-judge call **degrades to "no signal from this check"** rather than crashing the
-  evaluation.
+  evaluation. This is a **fail-open**, and it is worth naming as one: when every judge tier is
+  exhausted the evaluation completes with the deterministic findings only, so the interaction can
+  score well because a check *did not run* rather than because it passed. The exhaustion is
+  logged, but it is not currently recorded on the interaction itself. See §11.
 - The Executive Narrator falls back to its deterministic template, so a quota exhaustion produces
   a plainer *real* report rather than an error message.
 
@@ -535,6 +545,13 @@ survive technical due diligence.
   and recorded without their handling changing (§4). TrustScore is a weighted average, so a
   single-dimension failure is diluted by two passing dimensions. This is the most significant
   known gap in the system.
+- **Judge unavailability fails open and is not recorded on the interaction.** If every model
+  tier is exhausted, the semantic checks silently contribute nothing and the trace does not
+  distinguish "this check found nothing" from "this check never ran". The deterministic 60% of
+  findings are unaffected, which bounds the blast radius, but an operator cannot currently see
+  the difference. The right fix is to treat a detector failure as an operational event that is
+  never a content signal, and to make the response to one a per-application policy — fail-open
+  for a support bot, fail-closed to human review for a regulated workflow.
 - **No multi-tenant authentication** on the proxy endpoint — single-process demo.
 - **In-process state** rather than a real message queue; this is the binding constraint on
   evaluation throughput.
@@ -551,7 +568,7 @@ survive technical due diligence.
 | Phase | Scope |
 |---|---|
 | **Phase 1** — 2–3 months | **Consequence-aware routing** — escalate on expected loss (estimated business impact × probability of error) and on reversibility, both already computed and currently unused at decision time; this is the direct answer to the §4 routing gap. Redis Streams message queue; purpose-built classifiers to reduce judge dependency; a policy-as-code editor; automated threshold recalibration from captured reviewer decisions. |
-| **Phase 2** — 3–6 months | Design-partner deployment on a non-critical use case; multi-turn conversation-state tracking; ISO 42001 / EU AI Act evidence-bundle export. |
+| **Phase 2** — 3–6 months | **Per-application `fail_mode`** — fail-open or fail-closed on detector failure, recorded as an operational event distinct from any content finding. Design-partner deployment on a non-critical use case; multi-turn conversation-state tracking; ISO 42001 / EU AI Act evidence-bundle export. |
 | **Phase 3** | Multi-tenant auth and SOC 2 readiness; horizontal scaling of the evaluation layer; industry policy-template packs. |
 
 ---
